@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.env
+data/
+artifacts/
+*.parquet
+*.npz
+*.pkl
+assets/wireframe_football_logo_model.glb

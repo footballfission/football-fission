@@ -1,0 +1,31 @@
+{
+  "project": "hierarchical-football",
+  "files": [
+    ".gitignore",
+    "PROJECT_FILES.json",
+    "README.md",
+    "docs/CENTRAL_RESULTS.md",
+    "docs/COMPARISON_GUIDE.md",
+    "docs/CROSS_POSITION_RESULTS.md",
+    "docs/DATA_CONTRACT.md",
+    "docs/HIERARCHICAL_VARIANTS.md",
+    "docs/INJURY_RESEARCH_BOUNDARIES.md",
+    "docs/INJURY_RESEARCH_SNAPSHOT.md",
+    "docs/MODEL_DESIGN.md",
+    "docs/TEAM_OPPORTUNITY_PLAN.md",
+    "examples/predict_wr.py",
+    "pyproject.toml",
+    "src/hierarchical_football/__init__.py",
+    "src/hierarchical_football/chains_dst.py",
+    "src/hierarchical_football/chains_k.py",
+    "src/hierarchical_football/chains_qb.py",
+    "src/hierarchical_football/chains_rb.py",
+    "src/hierarchical_football/chains_te.py",
+    "src/hierarchical_football/common.py",
+    "src/hierarchical_football/features.py",
+    "src/hierarchical_football/hierarchical.py",
+    "src/hierarchical_football/metrics.py",
+    "src/hierarchical_football/scoring.py",
+    "src/hierarchical_football/uncertainty.py"
+  ]
+}
