@@ -16,7 +16,11 @@ dependencies = [
     "pyarrow>=18.0",
     "lightgbm>=4.7",
     "scikit-learn>=1.5",
+    "tzdata>=2024.1",
 ]
+
+[project.optional-dependencies]
+data = ["nflreadpy>=0.1.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

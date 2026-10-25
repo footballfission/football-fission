@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
@@ -16,12 +17,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--predict", type=Path, required=True)
-    parser.add_argument("--features", nargs="+", required=True)
+    feature_args = parser.add_mutually_exclusive_group(required=True)
+    feature_args.add_argument("--features", nargs="+")
+    feature_args.add_argument("--features-file", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--draws", type=int, default=200)
     parser.add_argument("--trees", type=int, default=200)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
+    if args.features_file is not None:
+        args.features = json.loads(args.features_file.read_text(encoding="utf-8"))
+        if not isinstance(args.features, list) or not args.features or not all(isinstance(c, str) for c in args.features):
+            parser.error("features file must contain a nonempty JSON list of column names")
     if args.draws <= 0 or args.trees <= 0:
         parser.error("draws and trees must be positive")
     if args.output.exists():
