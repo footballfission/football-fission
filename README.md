@@ -108,3 +108,11 @@ Every player row carries `roster_carried_forward`. An observed snapshot is `Fals
 Extension never fills week 1 of a season, never invents a team that has no earlier snapshot, and never overwrites a week that already has one. It does not know about trades, signings, or practice-squad moves made after the copied snapshot.
 
 Run the focused checks with `python -m unittest tests.test_roster_extension -q`.
+
+## Prediction bundle metadata
+
+`split_week` writes `train.parquet`, `prediction.parquet`, `observed.parquet`, `features.json`, and `split_report.json`. The prediction bundle holds identity and timing (`player_id`, `team`, `position`, `season`, `week`, `game_id`, `kickoff`, `prediction_timestamp`), roster context (`roster_status`, `roster_carried_forward`), and the feature list. Outcomes and `fantasy_points` go to `observed.parquet` only.
+
+Roster columns are metadata, not model input: the feature list is filtered by `model_features`, which never admits a roster column, so a bundle cannot leak availability into a fit. Restricting the bundle to `roster_status == "ACT"` is the caller's decision, and it is what turns a roster-wide panel into a list of players who could plausibly be started.
+
+Run the focused checks with `python -m unittest tests.test_data_pipeline -q`.

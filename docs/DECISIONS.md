@@ -39,3 +39,11 @@ It does not model roster change. A trade, signing, injury designation, or practi
 | Week has none, a same-season earlier snapshot exists | copied from the newest such snapshot, flagged true |
 | Week has none, no earlier snapshot exists | no player rows |
 | Extension not requested | no player rows for unsnapshotted weeks |
+
+## Prediction bundle metadata
+
+A prediction bundle carries what identifies a row and what its cutoff was; it never carries the outcome. Roster status and the carried-forward flag travel with the bundle because eligibility is a caller decision, not a model output.
+
+Roster columns stay out of `features.json`. They are context a consumer may filter on, not signals a model may fit.
+
+The bundle does not say who will play. `roster_status` is the last observed designation, and for a week built by roster extension it is inherited from an earlier snapshot; an inactive list published after the cutoff never appears.
