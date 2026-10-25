@@ -80,3 +80,39 @@ pyproject.toml              Standalone package configuration
 ```
 
 Data ingestion and feature generation are the caller's responsibility. Start with the prepared-panel example and the data contract, then follow the team opportunity plan for future extensions.
+
+## Repository layout and ignored paths
+
+Tracked source lives in `src/hierarchical_football/`, including the `data` subpackage that ingests raw feeds and writes prepared panels. Everything a pipeline run generates stays untracked: `/data/` (raw cache, processed panels, week splits, forecasts), plus `artifacts/`, `*.parquet`, `*.npz`, `*.pkl`, `notes/`, and `.venv/`.
+
+The `/data/` rule is anchored to the repository root, so it does not hide `src/hierarchical_football/data/`. It covers every file a run writes under `data/`, including the `.json` manifests and per-file sidecars that record row counts and content hashes; those describe one local run and are not shared inputs.
+
+Run the focused checks with `python -m unittest tests.test_repository_hygiene -q`.
+
+## Raw ingest cache
+
+`hierarchical_football.data.ingest.ingest(raw, seasons, tables, *, refresh=False, loader=None)` stores one Parquet file per table and season at `raw/<table>/season=<year>/part.parquet`, with a `.json` sidecar carrying the row count, schema, and content hash. A cached partition is reused unless `refresh=True`; a partition whose download fails is left exactly as it was, and the run raises `RuntimeError` after writing its report.
+
+`raw/ingest_report.json` accumulates history instead of describing only the last run. `partitions` holds one entry per table and season across every run that touched the cache, with `status` of `downloaded` or `cached`. `runs` appends one summary per invocation with its `started_at`, `seasons`, `tables`, `downloaded` and `cached` counts, and its own `errors`. `started_at` is the first run that wrote the report and `updated_at` is the most recent one. The top-level `errors` list describes only the run that just finished, so a later successful run does not erase an earlier failure from `runs`.
+
+The report describes which partitions this cache holds and when each was fetched. It does not certify that a cached partition was the state of the source at a requested `as_of`; every partition sidecar records `historical_asof_verified: false`.
+
+Run the focused checks with `python -m unittest tests.test_ingest_history -q`.
+
+## Roster extension for unplayed weeks
+
+`assemble(..., extend_rosters=True)` and `build --extend-rosters` fill scheduled team-weeks that have no roster snapshot with each team's most recent earlier snapshot from the same season. The weekly roster feed lags the schedule, so a feed that stops at week 7 still leaves weeks 8-18 in `schedules`.
+
+Every player row carries `roster_carried_forward`. An observed snapshot is `False`; a copied row is `True`, and `roster_present` stays `True` with the copied `roster_status`. The assemble report counts `carried_forward_roster_rows` and `extended_roster_team_weeks`, and `build` records the `extend_rosters` setting in `build_report.json`.
+
+Extension never fills week 1 of a season, never invents a team that has no earlier snapshot, and never overwrites a week that already has one. It does not know about trades, signings, or practice-squad moves made after the copied snapshot.
+
+Run the focused checks with `python -m unittest tests.test_roster_extension -q`.
+
+## Prediction bundle metadata
+
+`split_week` writes `train.parquet`, `prediction.parquet`, `observed.parquet`, `features.json`, and `split_report.json`. The prediction bundle holds identity and timing (`player_id`, `team`, `position`, `season`, `week`, `game_id`, `kickoff`, `prediction_timestamp`), roster context (`roster_status`, `roster_carried_forward`), and the feature list. Outcomes and `fantasy_points` go to `observed.parquet` only.
+
+Roster columns are metadata, not model input: the feature list is filtered by `model_features`, which never admits a roster column, so a bundle cannot leak availability into a fit. Restricting the bundle to `roster_status == "ACT"` is the caller's decision, and it is what turns a roster-wide panel into a list of players who could plausibly be started.
+
+Run the focused checks with `python -m unittest tests.test_data_pipeline -q`.

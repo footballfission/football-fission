@@ -11,3 +11,5 @@ artifacts/
 *.npz
 *.pkl
 assets/wireframe_football_logo_model.glb
+notes/
+/data/

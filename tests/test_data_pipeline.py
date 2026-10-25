@@ -206,6 +206,23 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(old, (raw/"schedules/season=2024/part.parquet").read_bytes())
             self.assertEqual(len(json.loads((raw/"ingest_report.json").read_text())["errors"]), 1)
 
+    def test_prediction_bundle_carries_roster_metadata(self):
+        schedule, stats, roster = fixtures()
+        with workspace_directory() as folder:
+            root = Path(folder)
+            for table, frame in (("schedules", schedule), ("player_stats_week", stats),
+                                 ("rosters_weekly", roster)):
+                write_frame(root / "raw" / table / "season=2024" / "part.parquet", pl.from_pandas(frame))
+            build(root / "raw", root / "processed", [2024], as_of="2025-01-01T00:00:00Z")
+            split_week(root / "processed", root / "week3", "WR", 2024, 3)
+            prediction = pl.read_parquet(root / "week3" / "prediction.parquet")
+            self.assertIn("roster_status", prediction.columns)
+            self.assertIn("roster_carried_forward", prediction.columns)
+            self.assertEqual(set(prediction["roster_status"].drop_nulls().unique()), {"ACT"})
+            self.assertTrue(prediction["roster_carried_forward"].is_not_null().all())
+            self.assertNotIn("targets", prediction.columns)
+            self.assertNotIn("fantasy_points", prediction.columns)
+
     def test_offline_build_all_positions(self):
         schedule, stats, roster = fixtures()
         with workspace_directory() as folder:

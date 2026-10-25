@@ -23,7 +23,8 @@ def split_week(processed: Path, output: Path, position: str, season: int, week: 
     if train.is_empty():
         raise ValueError("No completed training outcomes before target cutoff; ingest more history")
     metadata = [c for c in ("player_id", "team", "position", "season", "week", "game_id",
-        "kickoff", "prediction_timestamp") if c in target.columns]
+        "kickoff", "prediction_timestamp", "roster_status", "roster_carried_forward")
+        if c in target.columns]
     # Keep actual outcomes in a separate evaluation file; they cannot enter the prediction panel.
     prediction = target.select(list(dict.fromkeys([*metadata, *features])))
     observed = target.select(list(dict.fromkeys([*metadata, *POSITION_COLUMNS[position], "fantasy_points"])))
