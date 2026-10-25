@@ -94,12 +94,39 @@ def _attach_snaps(players, snaps, ids):
     return players.merge(snaps, on=KEYS, how="left", validate="one_to_one")
 
 
+def _extend_rosters(rosters, context):
+    """Copy each team's latest snapshot into later scheduled weeks that lack one."""
+    scheduled = context[TEAM_KEYS].drop_duplicates()
+    covered = rosters[TEAM_KEYS].drop_duplicates()
+    missing = scheduled.merge(covered, on=TEAM_KEYS, how="left", indicator=True)
+    missing = missing.loc[missing._merge.eq("left_only"), TEAM_KEYS]
+    blocks = []
+    for season, week, team in missing.itertuples(index=False):
+        history = rosters.loc[rosters.season.eq(season) & rosters.team.eq(team) & rosters.week.lt(week)]
+        if history.empty:
+            continue
+        block = history.loc[history.week.eq(history.week.max())].copy()
+        block["week"] = week
+        block["roster_carried_forward"] = True
+        blocks.append(block)
+    rosters = rosters.assign(roster_carried_forward=False)
+    if not blocks:
+        return rosters, 0, 0
+    extended = pd.concat([rosters, *blocks], ignore_index=True)
+    return extended, sum(len(block) for block in blocks), len(blocks)
+
+
 def assemble(schedules, stats, rosters, *, snaps=None, ids=None, zero_missing=False,
-             prediction_time=None, as_of=None):
+             extend_rosters=False, prediction_time=None, as_of=None):
     """Pure transformation entrypoint. Missing stats remain unknown unless policy is explicit."""
     context = schedule_rows(schedules, prediction_time=prediction_time, as_of=as_of)
     stats = normalize(stats)
     rosters = normalize(rosters, roster=True)
+    carried_rows, extended_weeks = 0, 0
+    if extend_rosters:
+        rosters, carried_rows, extended_weeks = _extend_rosters(rosters, context)
+    else:
+        rosters = rosters.assign(roster_carried_forward=False)
     required(rosters, KEYS, "weekly rosters")
     # Rosters without a stable ID cannot be linked; report and retain their count separately.
     missing_roster_ids = int(rosters.player_id.isna().sum())
@@ -122,7 +149,7 @@ def assemble(schedules, stats, rosters, *, snaps=None, ids=None, zero_missing=Fa
             raise ValueError(f"Negative count in {column}")
     if {"receptions", "targets"}.issubset(stats) and stats.receptions.gt(stats.targets).any():
         raise ValueError("Receptions exceed targets")
-    metadata = [c for c in ("position", "status", "full_name") if c in rosters]
+    metadata = [c for c in ("position", "status", "full_name", "roster_carried_forward") if c in rosters]
     roster = rosters[KEYS + metadata].rename(columns={"position": "roster_position", "status": "roster_status"})
     roster["roster_present"] = True
     selected = stats.loc[stats.player_id.notna(), KEYS + ["position"] + source_columns].copy()
@@ -133,6 +160,7 @@ def assemble(schedules, stats, rosters, *, snaps=None, ids=None, zero_missing=Fa
     players["position"] = players.position.replace({"HB": "RB", "FB": "RB"})
     players["roster_present"] = players.roster_present.eq(True)
     players["stat_record_present"] = players.stat_record_present.eq(True)
+    players["roster_carried_forward"] = players.roster_carried_forward.eq(True)
     unmatched = players.merge(context[TEAM_KEYS], on=TEAM_KEYS, how="left", indicator=True)
     unmatched_rows = int(unmatched._merge.eq("left_only").sum())
     players = players.merge(context.drop(columns="points_allowed"), on=TEAM_KEYS, how="inner", validate="many_to_one")
@@ -171,6 +199,7 @@ def assemble(schedules, stats, rosters, *, snaps=None, ids=None, zero_missing=Fa
     report = dict(player_rows=len(players), team_rows=len(teams), missing_roster_ids=missing_roster_ids,
                   unidentified_stat_rows=int(stats.player_id.isna().sum()),
                   unmatched_schedule_rows=unmatched_rows, assumed_zero_rows=int(assumed.sum()),
+                  carried_forward_roster_rows=carried_rows, extended_roster_team_weeks=extended_weeks,
                   unknown_outcome_rows=int(players.outcome_status.eq("unknown").sum()),
                   raw_asof_verified=False, missing_source_outcome_columns=sorted(set(PLAYER_OUTCOMES)-set(source_columns)))
     if "offense_snaps" in players:
@@ -207,7 +236,7 @@ def position_panel(players, teams, position):
 
 
 def build(raw: Path, output: Path, seasons, *, positions=("WR", "RB", "TE", "QB", "K", "DST"),
-          zero_missing=False, prediction_time=None, as_of=None):
+          zero_missing=False, extend_rosters=False, prediction_time=None, as_of=None):
     if not seasons or not positions or set(positions) - set(POSITION_COLUMNS):
         raise ValueError("Specify seasons and supported positions")
     as_of = as_of or utc_now()
@@ -221,7 +250,7 @@ def build(raw: Path, output: Path, seasons, *, positions=("WR", "RB", "TE", "QB"
         ids = ids.drop("season", strict=False).unique()
     players, teams, report = assemble(schedules.to_pandas(), stats.to_pandas(), rosters.to_pandas(),
         snaps=snaps.to_pandas(), ids=ids.to_pandas(), zero_missing=zero_missing,
-        prediction_time=prediction_time, as_of=as_of)
+        extend_rosters=extend_rosters, prediction_time=prediction_time, as_of=as_of)
     injuries = read_table(raw, "injuries", seasons, required=False)
     players = latest_known_injury_status(players, injuries)
     report["candidate_injury_report_matches"] = int(players["candidate_report_time"].is_not_null().sum())
@@ -234,7 +263,8 @@ def build(raw: Path, output: Path, seasons, *, positions=("WR", "RB", "TE", "QB"
     teams = team_history.drop("player_id")
     players = players.join(teams.select(*TEAM_KEYS, *team_features), on=TEAM_KEYS, how="left", validate="m:1")
     report.update(built_at=utc_now(), seasons=list(seasons), zero_missing_policy=zero_missing,
-                  as_of=as_of, prediction_time=prediction_time, positions={}, inputs=[])
+                  extend_rosters=extend_rosters, as_of=as_of, prediction_time=prediction_time,
+                  positions={}, inputs=[])
     used_tables = {"schedules", "player_stats_week", "rosters_weekly", "snap_counts", "ff_playerids",
                    "injuries", "depth_charts", "team_stats_week"}
     for path in sorted(raw.rglob("part.parquet")):

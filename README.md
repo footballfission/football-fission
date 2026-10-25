@@ -98,3 +98,13 @@ Run the focused checks with `python -m unittest tests.test_repository_hygiene -q
 The report describes which partitions this cache holds and when each was fetched. It does not certify that a cached partition was the state of the source at a requested `as_of`; every partition sidecar records `historical_asof_verified: false`.
 
 Run the focused checks with `python -m unittest tests.test_ingest_history -q`.
+
+## Roster extension for unplayed weeks
+
+`assemble(..., extend_rosters=True)` and `build --extend-rosters` fill scheduled team-weeks that have no roster snapshot with each team's most recent earlier snapshot from the same season. The weekly roster feed lags the schedule, so a feed that stops at week 7 still leaves weeks 8-18 in `schedules`.
+
+Every player row carries `roster_carried_forward`. An observed snapshot is `False`; a copied row is `True`, and `roster_present` stays `True` with the copied `roster_status`. The assemble report counts `carried_forward_roster_rows` and `extended_roster_team_weeks`, and `build` records the `extend_rosters` setting in `build_report.json`.
+
+Extension never fills week 1 of a season, never invents a team that has no earlier snapshot, and never overwrites a week that already has one. It does not know about trades, signings, or practice-squad moves made after the copied snapshot.
+
+Run the focused checks with `python -m unittest tests.test_roster_extension -q`.

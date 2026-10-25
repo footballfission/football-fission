@@ -24,6 +24,8 @@ def main():
     panel.add_argument("--positions", nargs="+", choices=POSITION_COLUMNS, default=list(POSITION_COLUMNS))
     panel.add_argument("--zero-missing-player-stats", action="store_true",
         help="Explicitly assume roster players missing from a completed team's stat feed had zero counters")
+    panel.add_argument("--extend-rosters", action="store_true",
+        help="Carry each team's latest roster snapshot into later scheduled weeks that have none")
     panel.add_argument("--as-of", help="Timezone-aware time limiting completed outcomes; default current UTC")
     panel.add_argument("--prediction-time", help="Timezone-aware cutoff for unfinished games; historical rows retain Wednesday cutoffs")
     split = commands.add_parser("split", help="Prepare one week with cutoff-filtered training and outcome-free prediction rows")
@@ -40,7 +42,8 @@ def main():
         print(json.dumps(split_week(args.processed_root, args.output, args.position, args.season, args.week)))
     else:
         result = build(args.raw_root, args.output, args.seasons, positions=args.positions,
-            zero_missing=args.zero_missing_player_stats, prediction_time=args.prediction_time, as_of=args.as_of)
+            zero_missing=args.zero_missing_player_stats, extend_rosters=args.extend_rosters,
+            prediction_time=args.prediction_time, as_of=args.as_of)
         print(json.dumps({"positions": result["positions"], "assumed_zero_rows": result["assumed_zero_rows"],
                           "unknown_outcome_rows": result["unknown_outcome_rows"]}))
 
