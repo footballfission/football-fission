@@ -370,3 +370,21 @@ the filter.
 The alternative, resolving fullbacks from the depth chart, is a real decision about which feed owns a
 player's position and would change the population and every downstream number. Until that decision is
 made, the report states the gap instead of a footnote claiming a scope the source cannot fill.
+
+## Summing a group of gains without borrowing or reading past the array
+
+`GainMixture.sample_totals` summed each group with `np.add.reduceat(draws, offsets)`, which has two
+documented quirks that a caller with an empty group meets immediately: a zero-size group returns the
+value of the draw at its offset rather than zero, and an offset that equals the length of the array -
+exactly what a trailing empty group produces - raises `IndexError`. Measured on a deterministic mixture
+with sizes `[0, 0, 4]`, the old path returned `[2, 2, 8]` instead of `[0, 0, 8]`, and sizes `[2, 1, 0]`
+raised `IndexError: index 3 out-of-bounds in add.reduceat`.
+
+The fix reduces only the non-empty groups and leaves the rest at zero. It is written into all four copies
+of the class, because each position module carries its own, and `tests/test_gain_mixture.py` runs the
+same checks against all four. The production paths mask their groups to a positive size before calling
+`reduceat` directly, so the defect was latent there; the public helper was the part a caller would hit.
+
+That test module is also the first check in the suite that imports the model layer at all. The data and
+inference layers have per-module tests; the position chains are covered only through this helper, which
+is a gap rather than a design.

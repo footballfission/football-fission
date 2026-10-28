@@ -69,6 +69,11 @@ Paired difference against `context` (positive means a larger loss, so a worse mo
 | context+identity | +0.0019 | [-0.0001, +0.0038] |
 | context+position+identity | +0.0021 | [+0.0001, +0.0041] |
 
+The identities in this run also make far more confident mistakes. The share of targets whose own log
+loss reaches two rises from 0.34% for the context baseline to 1.03% with the passer and receiver block
+added, against 0.32% to 0.42% in the follow-up at the penalty that run selected. `completion_metrics`
+reports that share beside the mean, which is how the two readings are told apart.
+
 ## Rushing: signed yards
 
 Held-out season 2024:
@@ -169,7 +174,8 @@ uv run python -m hierarchical_football.inference prepare --seasons 2022 2023 202
 ```
 
 The comparison is then assembled from the committed modules - a chronological split, one fit per model,
-per-row losses, and the paired game-clustered comparison:
+per-row losses, and the paired game-clustered comparison. All four models of the table above are fitted,
+so the printed output can be checked against it line by line:
 
 ```python
 import polars as pl
@@ -183,13 +189,31 @@ targets = pl.read_parquet("data/processed/inference/passing_targets.parquet")
 split = chronological_split(targets, train_seasons=[2022, 2023], holdout_season=2024,
                             contract=PASSING_CONTRACT)
 observed = split["holdout"]["complete_pass"].to_numpy().astype(float)
+models = {
+    "context": {},
+    "context+position": {"composites": {"position": ("position",)}},
+    "context+identity": {"identities": ("qb_id", "receiver_id")},
+    "context+position+identity": {"composites": {"position": ("position",)},
+                                  "identities": ("qb_id", "receiver_id")},
+}
 losses, metrics = {}, {}
-for name, kwargs in (("context", {}), ("context+position", {"composites": {"position": ("position",)}}),
-                     ("context+identity", {"identities": ("qb_id", "receiver_id")})):
+for name, kwargs in models.items():
     probability = fit_completion(split["train"], **kwargs).predict(split["holdout"])
     losses[name] = row_losses(observed, probability, task="completion")
     metrics[name] = completion_metrics(observed, probability)
-clustered_comparison(losses, clusters=split["holdout"]["game_id"].to_list(), draws=2000, seed=0)
+
+comparison = clustered_comparison(losses, clusters=split["holdout"]["game_id"].to_list(),
+                                  draws=2000, seed=0)
+# The printed rows are the table above: log loss with its clustered interval, and the share of
+# rows whose own log loss reaches two.
+for name in models:
+    interval = comparison["metrics"][name]
+    print(f"{name:28s} log_loss={interval['estimate']:.5f} "
+          f"[{interval['lower']:.5f}, {interval['upper']:.5f}] "
+          f"tail={metrics[name]['tail_share_at_2']:.5f}")
+for name, difference in comparison["differences"].items():
+    print(f"{name:28s} vs context {difference['estimate']:+.5f} "
+          f"[{difference['lower']:+.5f}, {difference['upper']:+.5f}]")
 ```
 
 The same steps with `fit_rushing`, `RUSHING_CONTRACT`, `yardage_metrics`, and `task="yards"` produce the

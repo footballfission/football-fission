@@ -649,7 +649,14 @@ class GainMixture:
         draws, offsets = self.sample_gains(sizes, shifts, rng)
         if draws.size == 0:
             return np.zeros(sizes.size, dtype=float)
-        return np.add.reduceat(draws, offsets)
+        # A group of size zero has to total zero rather than borrow its neighbour's first draw, and
+        # reduceat raises when an offset equals the length of the array, which is exactly what a
+        # trailing empty group produces. Reduce the non-empty groups and leave the rest at zero.
+        totals = np.zeros(sizes.size, dtype=float)
+        non_empty = sizes > 0
+        if non_empty.any():
+            totals[non_empty] = np.add.reduceat(draws, offsets[non_empty])
+        return totals
 
 
 def _td_gain_curve(

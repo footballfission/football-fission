@@ -208,7 +208,7 @@ uv run python -m hierarchical_football.inference prepare --seasons 2022 2023 202
 
 The `prepare` command builds both canonical tables from the cached partitions under `--raw-root` and prints a one-line JSON summary: `passing_targets` and `rushing_plays` row counts, the number of input partitions named in the manifest, and the total number of excluded plays across both tables. `--rusher-scope` accepts `backfield`, `non_qb`, or `all`.
 
-The command reads only what is already cached. It has no refresh flag, so a missing `pbp` partition raises `FileNotFoundError` and exits non-zero instead of starting a download; use `python -m hierarchical_football.data ingest --tables pbp rosters_weekly` first.
+The command reads only what is already cached. It has no refresh flag, so a missing `pbp` partition raises `FileNotFoundError` and exits non-zero instead of starting a download; use `python -m hierarchical_football.data ingest --seasons 2022 2023 2024 2025 --tables pbp rosters_weekly` first.
 
 Run the focused checks with `python -m unittest tests.test_inference_cli -q`.
 

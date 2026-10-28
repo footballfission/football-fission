@@ -53,19 +53,22 @@ class IgnoredPaths(unittest.TestCase):
         self.assertTrue(ignored("data/raw/ingest_report.json"))
         self.assertTrue(ignored("data/processed/build_report.json"))
 
-    def test_scratch_directories_that_hold_files_are_ignored(self):
-        """A scratch directory that exists has to be ignored, whatever it is called.
+    def test_every_scratch_directory_the_gitignore_names_is_ignored(self):
+        """The rule and the directory have to agree; asserting a name the rule does not cover proves
+        nothing, because `git check-ignore` answers for paths that do not exist either way.
 
-        `git check-ignore` answers for paths that do not exist, so asserting a fixed name proves
-        nothing: this checks the directories that are actually there, which is the case that risks a
-        careless `git add -A` staging a private worksheet.
+        The check reads the rules the working tree carries, so it holds whether or not a local rule
+        has been committed yet, and it fails when a directory is named as scratch and then not
+        ignored.
         """
-        for name in ("notes", "local_notes"):
-            if not (ROOT / name).exists():
-                continue
+        rules = [line.strip().rstrip("/") for line in
+                 (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()]
+        scratch = [rule for rule in rules if rule in ("notes", "local_notes")]
+        self.assertTrue(scratch, "the .gitignore names no scratch directory at all")
+        for name in scratch:
             with self.subTest(directory=name):
                 self.assertTrue(ignored(f"{name}/worksheet.md"),
-                                f"{name}/ holds scratch files but no .gitignore rule covers it")
+                                f"{name}/ is named as scratch but no rule ignores it")
 
     def test_package_source_named_data_stays_tracked(self):
         for path in (

@@ -55,6 +55,7 @@
     "src/hierarchical_football/scoring.py",
     "src/hierarchical_football/uncertainty.py",
     "tests/test_data_pipeline.py",
+    "tests/test_gain_mixture.py",
     "tests/test_inference_audits.py",
     "tests/test_inference_baselines.py",
     "tests/test_inference_build.py",
