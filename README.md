@@ -206,3 +206,9 @@ uv run python prepare_inference_tables.py --raw-root data/raw --output-root data
 The repository-root script is the command line the research plan documents. It takes the same four options as `python -m hierarchical_football.inference prepare`, calls the same `build` function, and prints the same one-line JSON summary. It requires the package to be importable, so run it with `uv run` from the repository root.
 
 Run the focused checks with `python -m unittest tests.test_prepare_script -q`.
+
+## Inference extraction audit
+
+`docs/INFERENCE_DATA_AUDIT.md` records the observed counts from the first four-season extraction: kept rows by season, every exclusion reason with its count, missing-value coverage, and the connected components of the passer-receiver pairing graph. It is evidence from one local run over the cached partitions it names by hash, not a test expectation or a model result.
+
+Run the focused checks with `python -m unittest tests.test_inference_build -q`.
