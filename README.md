@@ -274,10 +274,11 @@ every model's interval plus each model's paired difference against the reference
 context-only baseline unless the caller names another.
 
 `row_losses(observed, predicted, *, task)` produces the per-row losses that both intervals consume: the
-log loss of a completion, or the absolute error of a carry. `completion_metrics` adds the Brier score and
-a reliability table, and `yardage_metrics` adds RMSE, the median absolute error, and the share of
-residuals at ten yards or more, so a model that is never badly wrong is not confused with a model that is
-badly wrong a tenth of the time.
+log loss of a completion, or the absolute error of a carry. `completion_metrics` adds the Brier score, a
+reliability table, and the share of rows punished with a log loss of two or more; `yardage_metrics` adds
+RMSE, the median absolute error, and the share of residuals at ten yards or more. A model that is never
+badly wrong is not the same as a model that is badly wrong a tenth of the time, and the mean alone cannot
+tell them apart.
 
 The estimand is a row-level average loss over a season drawn from the same games, which is why a drawn
 cluster contributes all of its rows and the mean is taken over rows rather than over cluster means: games
@@ -290,11 +291,14 @@ Run the focused checks with `python -m unittest tests.test_inference_evaluation 
 ## Baseline fit audit
 
 `docs/INFERENCE_BASELINE_AUDIT.md` records the observed metrics and the paired game-clustered
-intervals from the first baseline fit on the cached canonical tables. Its headline finding is negative
-and useful: on the 2024 and 2025 splits the passer-receiver identity block does not improve held-out
-completion loss, and the support environment and the runner block cost mean absolute error rather than
-saving it. It is evidence from one local run over the partitions it names by hash, not a test
-expectation.
+intervals from the first baseline fit on the cached canonical tables, and
+`docs/INFERENCE_MODEL_DEVELOPMENT.md` records what happened when the penalty and the pooling were
+studied properly. The short version: at the single shared penalty of 1.0 that first fit used, the
+passer-receiver identity block cost held-out completion loss; with a penalty chosen on an earlier season,
+or with its own penalty on the identity block, the same block improves both scored seasons, by about
+0.0012 nats with intervals below zero. The report in `docs/INFERENCE_BASELINE_AUDIT.md` carries a
+correction note for the superseded headline. On the rushing side the result did not change: the support
+environment is at best neutral and the runner block costs error at every penalty tried.
 
 ## Partial pooling for identified players
 

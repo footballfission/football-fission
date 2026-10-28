@@ -28,6 +28,7 @@ TASKS = ("completion", "yards")
 DEFAULT_DRAWS = 2000
 DEFAULT_LEVEL = 0.95
 TAIL_YARDS = 10.0
+COMPLETION_TAIL = 2.0
 
 
 def chronological_split(table, *, train_seasons, holdout_season, contract=PASSING_CONTRACT):
@@ -76,8 +77,13 @@ def row_losses(observed, predicted, *, task):
     return -(truth * np.log(clipped) + (1 - truth) * np.log(1 - clipped))
 
 
-def completion_metrics(observed, probability, *, bins=10):
-    """Log loss, Brier score, and a reliability table for a fitted completion probability."""
+def completion_metrics(observed, probability, *, bins=10, tail=COMPLETION_TAIL):
+    """Log loss, Brier score, a reliability table, and the share of heavily punished rows.
+
+    The tail share is the part of the season where a confident prediction met the other outcome.
+    Two models can share a log loss and disagree about how often they are badly wrong, which is why
+    the share sits beside the mean rather than inside it.
+    """
     truth = np.asarray(observed, dtype=float)
     estimate = np.asarray(probability, dtype=float)
     losses = row_losses(truth, estimate, task="completion")
@@ -87,6 +93,7 @@ def completion_metrics(observed, probability, *, bins=10):
         "brier": float(np.mean((estimate - truth) ** 2)),
         "mean_probability": float(estimate.mean()),
         "observed_rate": float(truth.mean()),
+        f"tail_share_at_{int(tail)}": float(np.mean(losses >= tail)),
         "calibration": calibration_table(truth, estimate, bins=bins),
     }
 

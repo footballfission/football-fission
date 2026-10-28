@@ -97,6 +97,12 @@ class Metrics(unittest.TestCase):
         self.assertAlmostEqual(report["observed_rate"], 0.5)
         self.assertEqual(sum(bin_out["rows"] for bin_out in report["calibration"]), 4)
 
+    def test_the_heavily_punished_rows_are_counted_beside_the_mean(self):
+        report = completion_metrics(np.array([1.0, 1.0, 0.0]), np.array([0.99, 0.01, 0.5]))
+        self.assertAlmostEqual(report["tail_share_at_2"], 1 / 3)
+        quiet = completion_metrics(np.array([1.0, 1.0]), np.array([0.9, 0.9]))
+        self.assertEqual(quiet["tail_share_at_2"], 0.0)
+
     def test_calibration_reports_only_the_bins_that_hold_rows(self):
         table = calibration_table(np.array([1.0, 0.0]), np.array([0.05, 0.95]), bins=10)
         self.assertEqual(len(table), 2)
