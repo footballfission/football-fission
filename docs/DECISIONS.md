@@ -26,6 +26,7 @@ a changelog: each section describes why the current behavior is what it is.
 - [Giving a weak penalty enough iterations to converge](#giving-a-weak-penalty-enough-iterations-to-converge)
 - [Team-game panels: candidates, the OTHER residual, and a label-free index](#team-game-panels-candidates-the-other-residual-and-a-label-free-index)
 - [Chronological splits by week, and what a prediction bundle may carry](#chronological-splits-by-week-and-what-a-prediction-bundle-may-carry)
+- [Team volume baselines: a pooled count law and a team-history reference](#team-volume-baselines-a-pooled-count-law-and-a-team-history-reference)
 - [One word per concept across the inference layer](#one-word-per-concept-across-the-inference-layer)
 - [The charted pass location is the one context column recorded at the throw](#the-charted-pass-location-is-the-one-context-column-recorded-at-the-throw)
 
@@ -491,6 +492,33 @@ What the split does not do: it does not build features, and it does not promise 
 outside it is safe. A lag or a rolling average must still be computed from training weeks only. It also
 does not walk forward by itself; a caller that wants expanding-history folds takes one cutoff per fold
 from the same function, and the plan's early-season floor is the caller's rule to state.
+
+## Team volume baselines: a pooled count law and a team-history reference
+
+The plan asks for a pooled count baseline and a rolling team baseline before a hierarchical volume model
+is fitted, and for both to be scored on the same team games. `inference.volume` fits a negative binomial
+by maximum likelihood with the variance written `mu + mu**2 / k`, and a team-history reference that gives
+each team its mean over its most recent 17 training team games, falling back to the training league mean
+for a team that never appeared. The reference reuses the pooled dispersion, which is the empirical-noise
+form of a rolling baseline.
+
+The comparison consumes a split's three bundles rather than three frames of the caller's choosing. It
+refuses a prediction panel that still carries a label column, because that means the wrong bundle was
+passed, and an observed panel whose team games differ from the predicted ones, because two models scored
+on different rows prove nothing. Both baselines see the same rows, the same target definition, and the
+same cutoff.
+
+Measured on the cached seasons. Cutting at the end of 2023: pooled CRPS 4.30, MAE 6.09, coverage 0.549 at
+50% and 0.915 at 90%; team history CRPS 4.43, MAE 6.34, coverage 0.534 and 0.909. Cutting at the end of
+2024: pooled CRPS 4.307, MAE 6.135; team history CRPS 4.285, MAE 6.095. The team's own volume history did
+not beat the league's count law in 2024 and beat it by 0.02 CRPS in 2025, so neither baseline is a
+forecast; they are the floor the hierarchical model must clear.
+
+What these baselines do not do: they carry no team, opponent, or season effect, so the pooled law cannot
+separate a good offense from a lucky one; the dispersion is shared across teams; the reference reads only
+the training weeks and never updates inside the predicted weeks, so it cannot follow a mid-season change;
+the intervals are central intervals rather than a PIT curve; and a single cutoff is not walk-forward
+evaluation. Each of those is the hierarchical model's job, and each has to be measured on the same rows.
 
 ## One word per concept across the inference layer
 

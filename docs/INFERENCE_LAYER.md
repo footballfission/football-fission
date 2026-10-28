@@ -19,6 +19,7 @@ which checks hold it.
 - [First-stage extractor script](#first-stage-extractor-script)
 - [Team-game receiving panels](#team-game-receiving-panels)
 - [Chronological team-game splits](#chronological-team-game-splits)
+- [Team volume baselines](#team-volume-baselines)
 - [Baseline estimators](#baseline-estimators)
 - [Baseline evaluation](#baseline-evaluation)
 - [Partial pooling for identified players](#partial-pooling-for-identified-players)
@@ -63,6 +64,7 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `design.py` | Standardized catch-rate and log-odds contrasts under a reference population, with support reporting | `tests.test_inference_design` |
 | `panels.py` | Team-game target totals, available candidates, and the `OTHER` residual | `tests.test_inference_panels` |
 | `splits.py` | The week cutoff that separates training team games from the weeks a model predicts | `tests.test_inference_splits` |
+| `volume.py` | A pooled count law and a team-history reference for team target volume | `tests.test_inference_volume` |
 | `__main__.py` | The `prepare` command over the local cache | `tests.test_inference_cli` |
 
 Every module is offline. They read the cache under `data/raw`, write under the output root they are
@@ -224,6 +226,31 @@ feature built from these bundles may be computed from a later week.
 
 Run the focused checks with `python -m unittest tests.test_inference_splits -q`.
 
+## Team volume baselines
+
+`hierarchical_football.inference.volume` fits the comparison the team-volume model has to beat.
+`fit_negative_binomial(counts)` returns a mean and a dispersion by maximum likelihood, with the variance
+written `mu + mu**2 / k` so the two parameters are not confused with another library's. A sample without
+spread is refused, because a dispersion cannot be identified from a constant.
+
+`sample_negative_binomial(means, dispersion, *, draws, rng)` turns means into a `(rows, draws)` array of
+counts, and `volume_scores(samples, observed)` reduces that array to MAE, CRPS, and 50% and 90% central
+interval coverage and width. `team_means(panel, *, window=17)` gives each team its mean over its most
+recent training team games. `volume_comparison(train_panel, predict_panel, observed_panel, *, draws,
+seed, window)` consumes the three bundles a split produces, refuses a prediction panel that still carries
+a label or an observed panel about other team games, and scores the pooled law and the team-history
+reference on identical rows.
+
+Measured on the cached seasons. The panel's 2,174 team games average 31.47 targets and range from 8 to
+62. Cutting at the end of 2023 leaves 1,086 training team games and 1,088 to predict in 2024: the pooled
+law fits a mean of 32.03 with dispersion 34.9 and scores CRPS 4.30 and MAE 6.09, against CRPS 4.43 and MAE
+6.34 for the team-history reference. Cutting at the end of 2024 leaves 544 team games to predict in 2025,
+and there the two baselines land within 0.02 CRPS of each other with the reference marginally ahead. A
+team's own volume history is therefore not a reliable improvement over the league's count law in these
+seasons, which is the bar a hierarchical volume model has to clear rather than assume.
+
+Run the focused checks with `python -m unittest tests.test_inference_volume -q`.
+
 ## Baseline estimators
 
 `hierarchical_football.inference.baselines` fits the nested regularized baselines the research plan
@@ -383,8 +410,8 @@ refresh of the cache can move the numbers.
 - No participation join, and no reconciliation of derived game and team counts against a weekly table.
 - No posterior layer: player terms are regularized point estimates with a penalty sensitivity range, not
   intervals, and the layer never turns a term into a ranking. The team-game panel that the opportunity
-  models need is built and checked for conservation, but no volume and no allocation model is fitted on
-  it yet.
+  models need is built and checked for conservation, and the pooled and team-history volume baselines are
+  fitted and scored on it, but no hierarchical volume model and no allocation model is fitted yet.
 - No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency, so the
   pooling and contrast stages are library functions with no entry point in the tree. The records in
   `docs/` reached them from scratch drivers, and `tests/test_inference_partial_pooling.py` and
