@@ -257,3 +257,32 @@ error. The in-sample error is named that way on purpose. It is there to catch a 
 model with a column per player fits the rows it memorised by construction.
 
 Run the focused checks with `python -m unittest tests.test_inference_baselines -q`.
+
+## Baseline evaluation
+
+`hierarchical_football.inference.evaluation` scores a fitted baseline on a later season and puts an
+interval on the comparison. `chronological_split(table, *, train_seasons, holdout_season)` returns the
+earlier rows to fit and the later season to score, and refuses a holdout season that is not strictly
+later, an empty side, no named training season, or a table the contract would reject.
+
+Plays are clustered inside games, so every interval here resamples whole clusters instead of rows.
+`clustered_metric(losses, *, clusters)` gives the percentile interval of one model's mean row loss, and
+`bootstrap_difference(first, second, *, clusters)` gives the paired interval of the loss difference: a
+positive estimate means the first model is worse, and an interval that stays above zero is evidence
+against "no difference" in the losses. `clustered_comparison(models, *, clusters, reference=...)` reports
+every model's interval plus each model's paired difference against the reference, which is the
+context-only baseline unless the caller names another.
+
+`row_losses(observed, predicted, *, task)` produces the per-row losses that both intervals consume: the
+log loss of a completion, or the absolute error of a carry. `completion_metrics` adds the Brier score and
+a reliability table, and `yardage_metrics` adds RMSE, the median absolute error, and the share of
+residuals at ten yards or more, so a model that is never badly wrong is not confused with a model that is
+badly wrong a tenth of the time.
+
+The estimand is a row-level average loss over a season drawn from the same games, which is why a drawn
+cluster contributes all of its rows and the mean is taken over rows rather than over cluster means: games
+do not carry the same number of plays. The cluster count travels with every interval, because a
+percentile bootstrap over very few clusters is narrow: a handful of distinct resamples cannot reproduce
+the sampling spread of a handful of games.
+
+Run the focused checks with `python -m unittest tests.test_inference_evaluation -q`.

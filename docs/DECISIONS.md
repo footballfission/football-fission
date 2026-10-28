@@ -260,3 +260,36 @@ picked its own penalty in-sample would report the choice as evidence, and the ch
 belongs to the evaluation protocol, where the clustered resampling lives too. `report()` carries
 `in_sample` error for one purpose: to catch a fit that did not converge. A model with a column per
 player fits its own rows by construction and that number is never evidence about identity.
+
+## Holdout evaluation and clustered intervals
+
+The unit of resampling is the game, not the row. Plays inside one game share a defense, a score, a
+weather, a passer, and a game plan, so a standard error computed across rows treats those repeats as
+independent evidence and comes out too narrow. Resampling whole games keeps that dependence inside the
+unit that is drawn. The cluster column is a parameter, so a caller can use a team-week or a runner-week
+instead when that is the dependence of interest.
+
+The comparison is paired and the pooling is by row. Both models are scored on the same drawn clusters, so
+a play that is hard for one model is hard for the other in every replicate, and the interval is about the
+difference between the models rather than about the season they were scored on. Within a replicate the
+mean is taken over the drawn rows rather than over the drawn clusters' means, because games do not carry
+the same number of plays and the estimand is a row-level average loss.
+
+Sign is stated once and used everywhere: a positive difference means the first model carries the larger
+loss, so a difference interval that stays above zero is evidence against "no difference". The same
+convention applies to `clustered_comparison`, where every model is measured against the reference.
+
+The reported metrics follow the plan's primary list: log loss and Brier for completion, MAE for rushing,
+with RMSE, the median absolute error, the share of residuals at ten yards or more, and a reliability table
+as supporting output. The tail share sits beside the mean because a squared penalty on a skewed outcome is
+driven by extreme carries, and two models can share an MAE while disagreeing about who is badly wrong.
+
+An interval here is not a ranking. Nothing in this module tunes a penalty, searches a model, or declares a
+winner: a baseline that picked its own penalty on the holdout would report the choice as evidence, and the
+protocol decides what a difference means before the number is read.
+
+Two limits are stated rather than hidden. A percentile bootstrap over very few clusters is narrow, because
+a handful of distinct resamples cannot reproduce the sampling spread of a handful of games; the cluster
+count is therefore reported with every interval. And these intervals cover the difference in a row-level
+loss over a season, not the uncertainty of an individual player's term, which belongs to the posterior
+layer the plan schedules after the baselines.
