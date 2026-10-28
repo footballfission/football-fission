@@ -167,7 +167,7 @@ class RusherScope(unittest.TestCase):
 class SourcePlayByPlay(unittest.TestCase):
     def test_duplicate_source_plays_are_refused(self):
         frame = pl.concat([pbp_frame({}), pbp_frame({})])
-        with self.assertRaisesRegex(ValueError, "duplicate keys"):
+        with self.assertRaisesRegex(ValueError, "share a duplicate key"):
             rushing_plays(frame, positions=nearby_positions())
 
     def test_missing_source_column_is_named(self):

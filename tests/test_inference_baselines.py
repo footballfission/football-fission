@@ -2,49 +2,20 @@
 import unittest
 
 import numpy as np
-import polars as pl
 from sklearn.metrics import log_loss
 
 from hierarchical_football.inference.baselines import (
+    baseline_name,
+    convergence,
     fit_completion,
     fit_rushing,
     passing_design,
+    penalty_value,
     rushing_design,
+    warn_if_not_converged,
 )
 
-PASS_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", qb_id="qb1",
-    receiver_id="wr1", complete_pass=1, air_yards=8.0, yardline_100=40.0, ydstogo=10.0, down=1,
-    pass_location="left", position="WR",
-)
-RUSH_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", rusher_id="rb1",
-    rushing_yards=4.0, run_location="middle", run_gap="guard", yardline_100=40.0, ydstogo=10.0,
-    down=1, position="RB",
-)
-
-PASS_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, qb_id=pl.String, receiver_id=pl.String, complete_pass=pl.Int8,
-    air_yards=pl.Float64, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    pass_location=pl.String, position=pl.String,
-)
-RUSH_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, rusher_id=pl.String, rushing_yards=pl.Float64, run_location=pl.String,
-    run_gap=pl.String, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    position=pl.String,
-)
-
-
-def passing_frame(*changes):
-    rows = [{**PASS_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=PASS_SCHEMA)
-
-
-def rushing_frame(*changes):
-    rows = [{**RUSH_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=RUSH_SCHEMA)
+from tests.inference_fixtures import passing_frame, rushing_frame
 
 
 def completions(quarterbacks, rows=200, seed=0):
@@ -278,6 +249,37 @@ class RushingBaseline(unittest.TestCase):
         fitted = fit_rushing(carries((("rb1", 0.0),)))
         with self.assertRaisesRegex(ValueError, "missing columns"):
             fitted.predict(rushing_frame({}).drop("run_gap"))
+
+
+class Helpers(unittest.TestCase):
+    def test_a_penalty_comes_back_as_a_positive_float_or_not_at_all(self):
+        self.assertEqual(penalty_value(2), 2.0)
+        self.assertIsInstance(penalty_value(2), float)
+        with self.assertRaisesRegex(ValueError, "baselines.penalty_value: penalty must be positive"):
+            penalty_value(-1.0)
+
+    def test_a_name_states_the_design_it_grew_from(self):
+        self.assertEqual(baseline_name("passing", (), passing_design(passing_frame({}))),
+                         "passing:context")
+        sized = passing_design(passing_frame({}), composites={"position": ("position",)},
+                               identities=("qb_id",))
+        self.assertEqual(baseline_name("passing", ("qb_id",), sized),
+                         "passing:context+position+identity(qb_id)")
+
+    def test_a_closed_form_fit_reports_no_iteration_count(self):
+        in_sample = fit_rushing(rushing_frame({}, {})).report()["in_sample"]
+        self.assertIsNone(in_sample["iterations"])
+        self.assertTrue(in_sample["converged"])
+
+    def test_a_capped_fit_is_reported_and_its_state_passes_through(self):
+        class Capped:
+            n_iter_ = [7]
+
+        self.assertTrue(convergence(Capped(), 8)["converged"])
+        self.assertTrue(convergence(Capped(), None)["converged"])
+        with self.assertWarns(RuntimeWarning):
+            state = warn_if_not_converged(convergence(Capped(), 7), "passing_targets:test")
+        self.assertEqual(state, {"converged": False, "iterations": 7})
 
 
 if __name__ == "__main__":

@@ -6,28 +6,12 @@ import polars as pl
 from hierarchical_football.inference.audits import pairing_support, table_coverage
 from hierarchical_football.inference.contracts import PASSING_CONTRACT
 
-ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", qb_id="qb1",
-    receiver_id="wr1", complete_pass=1, air_yards=8.0, yardline_100=40.0, ydstogo=10.0, down=1,
-    pass_location="left", position="WR",
-)
-
-SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, qb_id=pl.String, receiver_id=pl.String, complete_pass=pl.Int8,
-    air_yards=pl.Float64, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    pass_location=pl.String, position=pl.String,
-)
-
-
-def passing_frame(*changes):
-    return pl.DataFrame([{**ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)],
-                        schema_overrides=SCHEMA)
+from tests.inference_fixtures import empty_passing_frame, passing_frame
 
 
 def empty_frame(**extra):
-    schema = {**SCHEMA, **extra}
-    return pl.DataFrame(schema=[(column, dtype) for column, dtype in schema.items()])
+    """A canonical passing frame with no rows, headlined by the charted columns under test."""
+    return empty_passing_frame(**extra)
 
 
 BRIDGED = (
@@ -114,7 +98,7 @@ class PairingSupport(unittest.TestCase):
         self.assertEqual(report["pairings_per_receiver"], {"min": 0, "median": None, "max": 0})
 
     def test_a_table_that_breaks_the_contract_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "duplicate play keys"):
+        with self.assertRaisesRegex(ValueError, "share a duplicate play key"):
             pairing_support(passing_frame({"play_id": 1}, {"play_id": 1}))
 
 

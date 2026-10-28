@@ -4,12 +4,13 @@ import json
 import runpy
 import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 import polars as pl
 
+from hierarchical_football.inference.__main__ import parser as package_parser
 from tests.test_inference_build import workspace, write_raw
 
 SCRIPT = Path(__file__).resolve().parent.parent / "prepare_inference_tables.py"
@@ -47,6 +48,28 @@ class ExtractorScript(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 run_script(["--seasons", "2019", "--raw-root", str(root / "raw"),
                             "--output-root", str(root / "inference")])
+
+
+class ParserParity(unittest.TestCase):
+    def parsers(self):
+        script_module = runpy.run_path(str(SCRIPT), run_name="parser_parity")
+        return {"package": package_parser(), "script": script_module["parser"]()}
+
+    def test_both_entry_points_take_the_same_options(self):
+        """Two command lines, one option set: a drift between them must fail here, not in review."""
+        parsers = self.parsers()
+        package = vars(parsers["package"].parse_args(["prepare", "--seasons", "2024"]))
+        script = vars(parsers["script"].parse_args(["--seasons", "2024"]))
+        package.pop("command")
+        self.assertEqual(package, script)
+
+    def test_both_entry_points_require_the_seasons(self):
+        parsers = self.parsers()
+        arguments = {"package": ["prepare"], "script": []}
+        for name, parser in parsers.items():
+            with self.subTest(entry_point=name):
+                with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+                    parser.parse_args(arguments[name])
 
 
 if __name__ == "__main__":

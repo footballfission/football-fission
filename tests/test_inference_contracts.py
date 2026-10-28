@@ -85,7 +85,7 @@ class PassingContract(unittest.TestCase):
 
     def test_duplicate_play_keys_are_rejected_not_deduplicated(self):
         frame = passing_frame({}, {})
-        with self.assertRaisesRegex(ValueError, "duplicate play keys"):
+        with self.assertRaisesRegex(ValueError, "share a duplicate play key"):
             validate(frame, PASSING_CONTRACT)
 
     def test_two_plays_in_one_game_are_allowed(self):
@@ -165,6 +165,19 @@ class FrameType(unittest.TestCase):
         for value in ({}, [], "passing_targets"):
             with self.assertRaises(TypeError):
                 validate(value, PASSING_CONTRACT)
+
+
+class DeclaredColumns(unittest.TestCase):
+    def test_the_contract_separates_required_from_optional_columns(self):
+        self.assertEqual(PASSING_CONTRACT.columns[:3], ("season", "week", "game_id"))
+        self.assertEqual(len(PASSING_CONTRACT.columns), 15)
+        self.assertIn("is_catchable_ball", PASSING_CONTRACT.optional_columns)
+        self.assertNotIn("is_catchable_ball", PASSING_CONTRACT.columns)
+
+    def test_the_rushing_contract_declares_its_own_columns(self):
+        self.assertIn("rusher_id", RUSHING_CONTRACT.columns)
+        self.assertIn("n_defense_box", RUSHING_CONTRACT.optional_columns)
+        self.assertEqual(RUSHING_CONTRACT.keys, PLAY_KEYS)
 
 
 if __name__ == "__main__":

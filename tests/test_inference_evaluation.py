@@ -2,7 +2,6 @@
 import unittest
 
 import numpy as np
-import polars as pl
 
 from hierarchical_football.inference.evaluation import (
     bootstrap_difference,
@@ -15,22 +14,7 @@ from hierarchical_football.inference.evaluation import (
     yardage_metrics,
 )
 
-PASS_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", qb_id="qb1",
-    receiver_id="wr1", complete_pass=1, air_yards=8.0, yardline_100=40.0, ydstogo=10.0, down=1,
-    pass_location="left", position="WR",
-)
-PASS_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, qb_id=pl.String, receiver_id=pl.String, complete_pass=pl.Int8,
-    air_yards=pl.Float64, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    pass_location=pl.String, position=pl.String,
-)
-
-
-def passing_frame(*changes):
-    rows = [{**PASS_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=PASS_SCHEMA)
+from tests.inference_fixtures import passing_frame
 
 
 class ChronologicalSplit(unittest.TestCase):
@@ -195,15 +179,15 @@ class ClusterResampling(unittest.TestCase):
     def test_a_comparison_keeps_the_first_model_as_the_reference(self):
         comparison = clustered_comparison({"context": self.first, "identity": self.second},
                                          clusters=self.games, draws=200, seed=1)
-        self.assertEqual(comparison["reference"], "context")
+        self.assertEqual(comparison["reference_model"], "context")
         self.assertEqual(sorted(comparison["metrics"]), ["context", "identity"])
         self.assertEqual(list(comparison["differences"]), ["identity"])
         self.assertAlmostEqual(comparison["differences"]["identity"]["estimate"], 0.05)
 
     def test_a_named_reference_must_be_one_of_the_models(self):
         with self.assertRaisesRegex(ValueError, "unknown reference model"):
-            clustered_comparison({"context": self.first}, clusters=self.games, reference="identity",
-                                 draws=10)
+            clustered_comparison({"context": self.first}, clusters=self.games,
+                                 reference_model="identity", draws=10)
         with self.assertRaisesRegex(ValueError, "at least one model"):
             clustered_comparison({}, clusters=self.games, draws=10)
 

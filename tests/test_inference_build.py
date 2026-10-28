@@ -1,8 +1,7 @@
 """Offline checks for writing the canonical inference tables and their manifest."""
 import json
-import shutil
+import tempfile
 import unittest
-import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -61,15 +60,13 @@ def write_raw(root, seasons=(2024, 2025), with_rosters=True):
 
 @contextmanager
 def workspace():
-    parent = Path(__file__).resolve().parent
-    folder = parent / ("inference_build_" + uuid.uuid4().hex)
-    folder.mkdir()
-    try:
-        yield folder
-    finally:
-        if folder.resolve().parent != parent:
-            raise RuntimeError("unexpected cleanup path")
-        shutil.rmtree(folder)
+    """A scratch tree outside the repository, removed even when a check fails.
+
+    It lives under the system temporary directory rather than beside the test modules, so an
+    interrupted run cannot leave an untracked directory in the source tree.
+    """
+    with tempfile.TemporaryDirectory(prefix="inference_build_") as folder:
+        yield Path(folder)
 
 
 class Build(unittest.TestCase):

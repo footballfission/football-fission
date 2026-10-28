@@ -7,6 +7,7 @@ import polars as pl
 from hierarchical_football.inference.baselines import fit_completion, fit_rushing
 from hierarchical_football.inference.design import (
     PASSING_CELLS,
+    RUSHING_CELLS,
     cell_weights,
     context_cells,
     contrast_sensitivity,
@@ -16,22 +17,7 @@ from hierarchical_football.inference.design import (
     support_report,
 )
 
-PASS_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", qb_id="qb1",
-    receiver_id="wr1", complete_pass=1, air_yards=8.0, yardline_100=40.0, ydstogo=10.0, down=1,
-    pass_location="left", position="WR",
-)
-PASS_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, qb_id=pl.String, receiver_id=pl.String, complete_pass=pl.Int8,
-    air_yards=pl.Float64, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    pass_location=pl.String, position=pl.String,
-)
-
-
-def passing_frame(*changes):
-    rows = [{**PASS_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=PASS_SCHEMA)
+from tests.inference_fixtures import passing_frame, rushing_frame
 
 
 def short_and_deep(rows=60, seed=0):
@@ -194,11 +180,7 @@ class Contrasts(unittest.TestCase):
         self.assertNotAlmostEqual(free["left_prediction"], held["left_prediction"], places=6)
 
     def test_a_log_odds_arm_needs_a_completion_model(self):
-        rushing = pl.DataFrame(
-            [{**PASS_ROW, "play_id": 1, "rusher_id": "rb1", "rushing_yards": 4.0,
-              "run_location": "middle", "run_gap": "guard", "position": "RB"}],
-            schema_overrides={**PASS_SCHEMA, "rusher_id": pl.String, "rushing_yards": pl.Float64,
-                              "run_location": pl.String, "run_gap": pl.String})
+        rushing = rushing_frame({})
         with self.assertRaisesRegex(ValueError, "needs a completion model"):
             standardized_prediction(fit_rushing(rushing), rushing, scale="log_odds")
 
@@ -236,6 +218,25 @@ class Contrasts(unittest.TestCase):
             penalties=(1.0, 1.0), **PASSING_CELLS)
         self.assertEqual(report["penalties_tried"], 1)
         self.assertAlmostEqual(report["spread"], 0.0)
+
+
+class CellSchemes(unittest.TestCase):
+    def test_the_passing_scheme_bands_the_target_depth(self):
+        labels = context_cells(passing_frame({"air_yards": 3.0}, {"air_yards": 22.0}),
+                               **PASSING_CELLS)
+        self.assertEqual(labels, ["air_yards=0-5|down=1|pass_location=left",
+                                  "air_yards=20-30|down=1|pass_location=left"])
+
+    def test_the_rushing_scheme_bands_field_position_and_distance(self):
+        labels = context_cells(rushing_frame({"yardline_100": 35.0, "ydstogo": 2.0}),
+                               **RUSHING_CELLS)
+        self.assertEqual(labels, ["yardline_100=20-40|ydstogo=1-4|down=1|run_location=middle"
+                                  "|run_gap=guard"])
+
+    def test_a_scheme_is_the_keyword_arguments_the_helpers_take(self):
+        table = passing_frame({"air_yards": 3.0}, {"air_yards": 22.0})
+        report = support_report(table, **PASSING_CELLS, min_rows=1)
+        self.assertEqual(report["cells"], 2)
 
 
 if __name__ == "__main__":

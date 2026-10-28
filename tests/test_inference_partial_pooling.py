@@ -7,46 +7,16 @@ import polars as pl
 from sklearn.linear_model import LogisticRegression
 
 from hierarchical_football.inference.baselines import build_design, fit_completion, fit_rushing
+from hierarchical_football.inference.contracts import RUSHING_CONTRACT
 from hierarchical_football.inference.partial_pooling import (
     IDENTITY_PENALTIES,
     fit_pooled_completion,
     fit_pooled_rushing,
-    identity_columns,
+    identity_mask,
     select_identity_penalty,
 )
 
-PASS_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", qb_id="qb1",
-    receiver_id="wr1", complete_pass=1, air_yards=8.0, yardline_100=40.0, ydstogo=10.0, down=1,
-    pass_location="left", position="WR",
-)
-RUSH_ROW = dict(
-    season=2024, week=1, game_id="2024_01_A_B", play_id=1, team="A", defteam="B", rusher_id="rb1",
-    rushing_yards=4.0, run_location="middle", run_gap="guard", yardline_100=40.0, ydstogo=10.0,
-    down=1, position="RB",
-)
-PASS_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, qb_id=pl.String, receiver_id=pl.String, complete_pass=pl.Int8,
-    air_yards=pl.Float64, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    pass_location=pl.String, position=pl.String,
-)
-RUSH_SCHEMA = dict(
-    season=pl.Int32, week=pl.Int32, game_id=pl.String, play_id=pl.Int64, team=pl.String,
-    defteam=pl.String, rusher_id=pl.String, rushing_yards=pl.Float64, run_location=pl.String,
-    run_gap=pl.String, yardline_100=pl.Float64, ydstogo=pl.Float64, down=pl.Int32,
-    position=pl.String,
-)
-
-
-def passing_frame(*changes):
-    rows = [{**PASS_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=PASS_SCHEMA)
-
-
-def rushing_frame(*changes):
-    rows = [{**RUSH_ROW, "play_id": index + 1, **change} for index, change in enumerate(changes)]
-    return pl.DataFrame(rows, schema_overrides=RUSH_SCHEMA)
+from tests.inference_fixtures import passing_frame, rushing_frame
 
 
 def season_of(quarterbacks, season, rows=200, seed=0):
@@ -79,7 +49,7 @@ class BlockScaling(unittest.TestCase):
     def test_only_the_identity_columns_are_marked(self):
         design = build_design(self.table, continuous=("air_yards",), categorical=("down",),
                               identities=("qb_id",))
-        mask = identity_columns(design, ("qb_id",))
+        mask = identity_mask(design, ("qb_id",))
         self.assertEqual([column for column, marked in zip(design.columns, mask) if marked],
                          ["qb_id=qb1", "qb_id=qb2"])
 
@@ -87,7 +57,7 @@ class BlockScaling(unittest.TestCase):
         fitted = fit_pooled_completion(self.table, identities=("qb_id",), identity_penalty=10.0,
                                        context_penalty=1.0)
         factor = math.sqrt(1.0 / 10.0)
-        mask = identity_columns(fitted.design, ("qb_id",))
+        mask = identity_mask(fitted.design, ("qb_id",))
         matrix = np.array(fitted.design.matrix, copy=True)
         matrix[:, mask] *= factor
         target = self.table["complete_pass"].to_numpy().astype(float)
@@ -157,16 +127,16 @@ class PenaltySelection(unittest.TestCase):
 
     def test_a_real_identity_effect_keeps_little_shrinkage(self):
         report = select_identity_penalty(self.table, identities=("qb_id",), task="completion",
-                                         train_seasons=[2023], validation_season=2024)
+                                         train_seasons=[2023], holdout_season=2024)
         self.assertEqual(report["selected"], min(IDENTITY_PENALTIES))
         self.assertEqual(sorted(report["scores"]), sorted(float(p) for p in IDENTITY_PENALTIES))
         self.assertEqual(report["metric"], "log_loss")
-        self.assertEqual(report["rows"], {"train": 400, "validation": 400})
+        self.assertEqual(report["rows"], {"train": 400, "holdout": 400})
         self.assertFalse(report["flat"])
 
     def test_a_grid_with_no_identity_columns_is_flat_and_keeps_the_most_shrinkage(self):
         report = select_identity_penalty(self.table, identities=(), task="completion",
-                                         train_seasons=[2023], validation_season=2024,
+                                         train_seasons=[2023], holdout_season=2024,
                                          penalties=(0.1, 10.0))
         self.assertTrue(report["flat"])
         self.assertEqual(report["selected"], 10.0)
@@ -175,21 +145,21 @@ class PenaltySelection(unittest.TestCase):
         table = pl.concat([rushing_season((("rb1", 3.0), ("rb2", -3.0)), 2023, seed=1),
                            rushing_season((("rb1", 3.0), ("rb2", -3.0)), 2024, seed=2)])
         report = select_identity_penalty(table, identities=("rusher_id",), task="yards",
-                                         train_seasons=[2023], validation_season=2024,
+                                         train_seasons=[2023], holdout_season=2024,
                                          penalties=(0.1, 10.0))
         self.assertEqual(report["metric"], "mae")
         self.assertIn(report["selected"], (0.1, 10.0))
-        self.assertEqual(report["rows"], {"train": 400, "validation": 400})
+        self.assertEqual(report["rows"], {"train": 400, "holdout": 400})
 
     def test_the_selection_refuses_an_unknown_task(self):
         with self.assertRaisesRegex(ValueError, "unknown task"):
             select_identity_penalty(self.table, identities=("qb_id",), task="points",
-                                    train_seasons=[2023], validation_season=2024)
+                                    train_seasons=[2023], holdout_season=2024)
 
     def test_the_selection_never_scores_the_training_season_as_its_holdout(self):
         with self.assertRaisesRegex(ValueError, "not earlier"):
             select_identity_penalty(self.table, identities=("qb_id",), task="completion",
-                                    train_seasons=[2024], validation_season=2023, penalties=(1.0,))
+                                    train_seasons=[2024], holdout_season=2023, penalties=(1.0,))
 
 
 if __name__ == "__main__":

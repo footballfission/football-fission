@@ -4,7 +4,8 @@ import unittest
 import polars as pl
 
 from hierarchical_football.inference.contracts import PASSING_CONTRACT, UNKNOWN, validate
-from hierarchical_football.inference.prepare import passing_targets, roster_positions
+from hierarchical_football.inference.prepare import (passing_targets, require_columns,
+                                                     require_unique, roster_positions)
 
 PLAY = dict(
     season=2024, week=1, game_id="2024_01_A_B", play_id=1, season_type="REG", posteam="A",
@@ -123,7 +124,7 @@ class PassingTargets(unittest.TestCase):
 class SourcePlayByPlay(unittest.TestCase):
     def test_duplicate_source_plays_are_refused(self):
         frame = pl.concat([pbp_frame({}), pbp_frame({})])
-        with self.assertRaisesRegex(ValueError, "duplicate keys"):
+        with self.assertRaisesRegex(ValueError, "share a duplicate key"):
             passing_targets(frame)
 
     def test_null_play_key_is_refused(self):
@@ -152,7 +153,7 @@ class RosterPositions(unittest.TestCase):
         self.assertEqual(positions["player_id"].to_list(), ["wr1"])
 
     def test_ambiguous_position_for_one_player_week_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "duplicate keys"):
+        with self.assertRaisesRegex(ValueError, "share a duplicate key"):
             roster_positions(roster_frame({"position": "HB"}, {"position": "RB"}))
 
     def test_position_join_marks_unmatched_receivers_unknown(self):
@@ -168,6 +169,20 @@ class RosterPositions(unittest.TestCase):
         table, report = passing_targets(pbp_frame({}))
         self.assertEqual(table["position"].to_list(), [UNKNOWN])
         self.assertEqual(report["position_rows_unknown"], 1)
+
+
+class SourceChecks(unittest.TestCase):
+    def test_a_missing_source_column_is_named_with_its_frame(self):
+        with self.assertRaisesRegex(ValueError, r"pbp: missing columns \['nope'\]"):
+            require_columns(pbp_frame({}), ("season", "nope"), "pbp")
+
+    def test_a_repeated_play_key_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "pbp: 2 rows share a duplicate key"):
+            require_unique(pbp_frame({}, {"play_id": 1}), ("game_id", "play_id"), "pbp")
+
+    def test_a_null_play_key_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "pbp: 1 null values in keys"):
+            require_unique(pbp_frame({"game_id": None}), ("game_id", "play_id"), "pbp")
 
 
 if __name__ == "__main__":

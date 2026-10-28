@@ -20,7 +20,7 @@ def mixture(cls):
     return cls(np.array([0.5, 0.5]), np.array([2.0, 8.0]), np.array([1.0, 3.0]))
 
 
-def deterministic(cls, gain=0.0, shift_free=True):
+def deterministic(cls, gain=0.0):
     """A mixture with no spread, so a total is exactly `gain * size` plus the shifts."""
     return cls(np.array([1.0]), np.array([gain]), np.array([0.0]))
 
