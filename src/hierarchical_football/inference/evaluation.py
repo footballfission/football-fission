@@ -150,13 +150,20 @@ def _cluster_positions(clusters):
 
 
 def _drawn_means(losses, positions, rng, draws):
-    """Mean loss over rows of the drawn clusters, for each bootstrap replicate."""
+    """Mean loss over rows of the drawn clusters, for each bootstrap replicate.
+
+    A cluster's rows enter as its total loss and its row count, so a replicate is two inner products
+    over the drawn multiplicities rather than a concatenation of the drawn rows. The mean is taken
+    over the pooled rows, which is what a row-level estimand needs when games differ in size.
+    """
+    totals = np.array([losses[block].sum() for block in positions], dtype=float)
+    counts = np.array([block.size for block in positions], dtype=float)
+    broad = len(positions)
     drawn = np.empty(draws, dtype=float)
-    count = len(positions)
     for draw in range(draws):
-        picked = rng.integers(0, count, size=count)
-        rows = np.concatenate([positions[position] for position in picked])
-        drawn[draw] = losses[rows].mean()
+        picked = rng.integers(0, broad, size=broad)
+        multiplicity = np.bincount(picked, minlength=broad)
+        drawn[draw] = float(multiplicity @ totals) / float(multiplicity @ counts)
     return drawn
 
 
