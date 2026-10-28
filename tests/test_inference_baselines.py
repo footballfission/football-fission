@@ -194,6 +194,14 @@ class CompletionBaseline(unittest.TestCase):
         heavy = fit_completion(training, identities=("qb_id",), penalty=100.0)
         self.assertLess(abs(heavy.identity_terms()[0]["term"]), abs(light.identity_terms()[0]["term"]))
 
+    def test_a_fit_that_stops_at_the_iteration_cap_says_so(self):
+        """A capped fit is still returned, so the fact has to travel with the coefficients."""
+        with self.assertWarns(RuntimeWarning):
+            fitted = fit_completion(completions((("qb1", 0.8), ("qb2", 0.2))),
+                                    identities=("qb_id",), max_iter=1)
+        self.assertFalse(fitted.report()["in_sample"]["converged"])
+        self.assertEqual(fitted.report()["in_sample"]["iterations"], 1)
+
     def test_a_penalty_must_be_positive(self):
         with self.assertRaisesRegex(ValueError, "penalty must be positive"):
             fit_completion(completions((("qb1", 0.5), ("qb2", 0.5))), penalty=0.0)
@@ -208,7 +216,9 @@ class CompletionBaseline(unittest.TestCase):
         self.assertEqual(report["name"], "passing:context+identity(qb_id)")
         self.assertEqual(report["rows"], 400)
         self.assertEqual(report["features"], 7)
-        self.assertEqual(sorted(report["in_sample"]), ["brier", "log_loss"])
+        self.assertEqual(sorted(report["in_sample"]),
+                         ["brier", "converged", "iterations", "log_loss"])
+        self.assertTrue(report["in_sample"]["converged"])
         self.assertEqual(report["identity_levels"], {"qb_id": 2})
 
     def test_two_fits_of_the_same_rows_agree(self):
@@ -254,7 +264,7 @@ class RushingBaseline(unittest.TestCase):
         fitted = fit_rushing(carries((("rb1", 3.0), ("rb2", -3.0))))
         report = fitted.report()
         self.assertEqual(report["name"], "rushing:context")
-        self.assertEqual(sorted(report["in_sample"]), ["mae", "rmse"])
+        self.assertEqual(sorted(report["in_sample"]), ["converged", "iterations", "mae", "rmse"])
         self.assertEqual(report["features"], 5)
 
     def test_a_null_yardline_is_filled_and_counted(self):

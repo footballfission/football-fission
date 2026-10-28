@@ -17,6 +17,7 @@ declares the chronological split and reports the comparison.
 """
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -224,6 +225,28 @@ def build_design(frame, *, continuous=(), categorical=(), composites=None, ident
                   nesting=nesting, notes=notes)
 
 
+def convergence(estimator, max_iter):
+    """Whether a solver reached its own stopping rule, and how many iterations it took.
+
+    A fit that stops on the iteration cap is still a fit, and its coefficients are still returned;
+    that is exactly why the fact has to be recorded rather than left in the solver. A weak penalty on
+    several hundred correlated columns is where this happens in practice.
+    """
+    iterations = getattr(estimator, "n_iter_", None)
+    if iterations is None:            # a closed-form solver has no iteration count to report
+        return {"converged": True, "iterations": None}
+    used = int(np.max(np.asarray(iterations)))
+    return {"converged": used < int(max_iter), "iterations": used}
+
+
+def warn_if_not_converged(state, name):
+    if not state["converged"]:
+        warnings.warn(f"{name}: the solver stopped at its iteration cap after "
+                      f"{state['iterations']} iterations, so the coefficients are not at the optimum",
+                      RuntimeWarning, stacklevel=3)
+    return state
+
+
 def _composed(composites, support):
     composed = dict(composites or {})
     if support:
@@ -391,6 +414,7 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
     in_sample = {
         "log_loss": float(log_loss(target, probability, labels=[0, 1])),
         "brier": float(brier_score_loss(target, probability)),
+        **warn_if_not_converged(convergence(estimator, max_iter), "passing:context"),
     }
     return FittedBaseline(name=baseline_name("passing", identities, design), task="completion",
                           target="complete_pass", contract=PASSING_CONTRACT.name, penalty=penalty,
@@ -413,7 +437,8 @@ def fit_rushing(table, *, identities=(), composites=None, support=False, penalty
     estimator.fit(design.matrix, target)
     residual = target - estimator.predict(design.matrix)
     in_sample = {"mae": float(np.mean(np.abs(residual))),
-                 "rmse": float(np.sqrt(np.mean(residual ** 2)))}
+                 "rmse": float(np.sqrt(np.mean(residual ** 2))),
+                 **convergence(estimator, None)}
     return FittedBaseline(name=baseline_name("rushing", identities, design), task="yards",
                           target="rushing_yards", contract=RUSHING_CONTRACT.name, penalty=penalty,
                           rows=table.height, estimator=estimator, design=design, in_sample=in_sample)

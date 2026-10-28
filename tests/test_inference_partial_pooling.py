@@ -136,6 +136,11 @@ class BlockScaling(unittest.TestCase):
         self.assertLess(heavy, light)
         self.assertAlmostEqual(pooled.report()["block_penalties"]["identity_scale"], 0.2)
 
+    def test_a_pooled_fit_that_stops_at_the_cap_says_so(self):
+        with self.assertWarns(RuntimeWarning):
+            fitted = fit_pooled_completion(self.table, identities=("qb_id",), max_iter=1)
+        self.assertFalse(fitted.report()["in_sample"]["converged"])
+
     def test_a_penalty_must_be_positive(self):
         with self.assertRaisesRegex(ValueError, "penalty must be positive"):
             fit_pooled_completion(self.table, identities=("qb_id",), identity_penalty=0.0)

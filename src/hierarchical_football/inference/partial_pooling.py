@@ -28,9 +28,11 @@ from .baselines import (
     DEFAULT_TOLERANCE,
     FittedBaseline,
     baseline_name,
+    convergence,
     passing_design,
     penalty_value,
     rushing_design,
+    warn_if_not_converged,
 )
 from .contracts import PASSING_CONTRACT, RUSHING_CONTRACT
 from .evaluation import TASKS, chronological_split, row_losses
@@ -89,7 +91,8 @@ def fit_pooled_completion(table, *, identities=("qb_id", "receiver_id"), composi
                             context_penalty=context_penalty, identities=identities)
     probability = estimator.predict_proba(design.matrix)[:, 1]
     in_sample = {"log_loss": float(log_loss(target, probability, labels=[0, 1])),
-                 "brier": float(brier_score_loss(target, probability))}
+                 "brier": float(brier_score_loss(target, probability)),
+                 **warn_if_not_converged(convergence(estimator, max_iter), "passing:pooled")}
     return FittedBaseline(
         name=_pooled_name("passing", identities, design, identity_penalty, context_penalty),
         task="completion", target="complete_pass", contract=PASSING_CONTRACT.name,
@@ -110,7 +113,8 @@ def fit_pooled_rushing(table, *, identities=("rusher_id",), composites=None, sup
                             context_penalty=context_penalty, identities=identities)
     residual = target - estimator.predict(design.matrix)
     in_sample = {"mae": float(np.mean(np.abs(residual))),
-                 "rmse": float(np.sqrt(np.mean(residual ** 2)))}
+                 "rmse": float(np.sqrt(np.mean(residual ** 2))),
+                 **convergence(estimator, None)}
     return FittedBaseline(
         name=_pooled_name("rushing", identities, design, identity_penalty, context_penalty),
         task="yards", target="rushing_yards", contract=RUSHING_CONTRACT.name,

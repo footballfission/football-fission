@@ -344,3 +344,16 @@ range, labelled as such, which is honest about being a study of one modelling ch
 Nothing here is causal. Holding the context fixed removes the observed context difference between two
 players. Coach, coverage, route assignment, health, and game script are not in the model and are not
 removed by it, and a player swap is never described as an intervention.
+
+## Reporting a fit that stopped at its iteration cap
+
+A logistic fit that reaches the iteration limit is still a fit: scikit-learn returns coefficients, the
+sampler and the metric functions use them, and nothing in the call stack says the solve never finished.
+That happened here in practice - every selection fit at the weakest penalties (0.03 and 0.1) on the
+identity designs hit the cap of 1000 iterations. The module now reports the iteration count and a
+`converged` flag inside `in_sample`, and warns with a `RuntimeWarning` when the cap was reached.
+
+The fit is returned rather than refused, because a caller searching a penalty grid needs the weak end of
+the grid to be measurable, and because the fact is what matters: a coefficient that is not at the optimum
+is still useful evidence, as long as the reader knows. A closed-form solver reports `converged` true with
+no iteration count, which is why the flag is a triple and not a boolean.
