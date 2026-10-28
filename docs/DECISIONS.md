@@ -47,3 +47,33 @@ A prediction bundle carries what identifies a row and what its cutoff was; it ne
 Roster columns stay out of `features.json`. They are context a consumer may filter on, not signals a model may fit.
 
 The bundle does not say who will play. `roster_status` is the last observed designation, and for a week built by roster extension it is inherited from an earlier snapshot; an inactive list published after the cutoff never appears.
+
+## Inference table contracts
+
+A canonical inference table is validated, never repaired. A consumer that receives a
+`passing_targets` or `rushing_plays` frame knows that the play key is unique, that both
+identities and the outcome are present, and that every label is either declared in the
+contract or `UNKNOWN`. Preparation owns those guarantees; validation only proves them.
+
+`UNKNOWN` is a label, not a missing value. A pass whose charted location is absent, and a
+player the weekly roster feed does not tag with a known position, carry `UNKNOWN` so an
+analysis can count them instead of dropping or guessing them. A null in those columns is a
+contract violation, because it would be indistinguishable from a failed join.
+
+The contract covers required columns only. The optional charted and defensive fields -
+catchability, drop, contested, screen, pressure, yards after catch, box count, personnel,
+formation - vary in coverage by season, so a table without them is valid and their absence
+is a data-availability question rather than a schema error.
+
+| Situation | Result |
+| --- | --- |
+| Required column absent | `ValueError` naming the table and the missing columns |
+| Column of the wrong kind | `ValueError` naming the column and the expected kind |
+| Null key, season, week, team, identity, outcome, or position | `ValueError` naming the column and its null count |
+| Label outside the declared set | `ValueError` listing the unexpected labels |
+| Duplicate `(game_id, play_id)` | `ValueError` with the duplicate count; no row is dropped |
+| Trick-play reception by a player tagged `QB` | kept; analyses choose their own position subset |
+
+It does not certify that play-by-play classified a play correctly, that a snap belongs to
+the player credited with it, or that the optional charted fields are trustworthy in the
+seasons where they exist.

@@ -116,3 +116,15 @@ Run the focused checks with `python -m unittest tests.test_roster_extension -q`.
 Roster columns are metadata, not model input: the feature list is filtered by `model_features`, which never admits a roster column, so a bundle cannot leak availability into a fit. Restricting the bundle to `roster_status == "ACT"` is the caller's decision, and it is what turns a roster-wide panel into a list of players who could plausibly be started.
 
 Run the focused checks with `python -m unittest tests.test_data_pipeline -q`.
+
+## Inference table contracts
+
+`hierarchical_football.inference.contracts` declares the two canonical play-level tables of the inferential research layer: `passing_targets` and `rushing_plays`. Each is one row per play with a fixed column list, label set, and key, so that preparation and modeling agree on the frame before any model is fitted.
+
+`validate(frame, contract)` returns the frame unchanged when it satisfies the contract, and raises `ValueError` naming the table and the offending column otherwise. It rejects a missing required column, a column of the wrong kind (`int`, `number`, `text`, `flag`), a null season, week, team, play key, identity, outcome, or position, a completion flag outside `0` and `1`, a label outside the declared set, and a duplicate `(game_id, play_id)` key. It is read-only: it never drops a duplicate row, casts a dtype, or fills a value.
+
+`canonical_position(tag)` maps the roster tags `QB`, `RB`, `HB`, `FB`, `WR`, and `TE` onto canonical labels and returns `UNKNOWN` for everything else, including null. Missing labels stay explicit: `pass_location`, `run_location`, `run_gap`, and `position` hold `UNKNOWN` rather than `null`, so no pass is assigned a side it may not have had and no rusher is assumed to be a running back.
+
+The contract covers required columns only. `PASSING_CONTRACT.optional_columns` and `RUSHING_CONTRACT.optional_columns` list the charted and defensive fields the plan admits - catchability, drop, contested, screen, pressure, yards after catch, box count, personnel, formation. A table without them is valid; their coverage is a data-availability question, not a schema error.
+
+Run the focused checks with `python -m unittest tests.test_inference_contracts -q`.
