@@ -142,3 +142,19 @@ Nothing is imputed and nothing is dropped in silence. An absent or unrecognised 
 The table carries no charted field. Catchability, drop, contested, screen, pressure, and yards after catch arrive only after their per-season coverage is measured.
 
 Run the focused checks with `python -m unittest tests.test_inference_passing -q`.
+
+## Rushing attempt preparation
+
+`hierarchical_football.inference.prepare.rushing_plays(pbp, *, positions=None, rusher_scope="backfield")` turns locally cached play-by-play into the canonical `rushing_plays` table and returns `(table, report)`. A kept play is a designed regular-season carry with a known team and a recorded signed yardage. Kneels, spikes, and scrambles are removed because they are recorded as runs but are not rushing attempts, and signed gains stay signed: a carry for minus three yards is a carry.
+
+`rusher_scope` names whose carries the table is about, because a quarterback carry is a different question from a running back carry:
+
+| Scope | Positions kept |
+| --- | --- |
+| `backfield` (default) | `RB`, `FB` |
+| `non_qb` | `RB`, `FB`, `WR`, `TE` |
+| `all` | every identified rusher, including `QB` and an untagged player |
+
+The two narrower scopes need `positions`, and raise `ValueError` without them rather than returning an empty table. A carry outside the scope is counted under `outside_rusher_scope`, like every other exclusion, so `report["target_rows"]` plus the exclusions always equals the source row count. The report also carries `rusher_scope`, `scope_positions`, `missing_context` for `yardline_100`, `ydstogo`, and `down`, and the `UNKNOWN` counts for `run_location` and `run_gap`.
+
+Run the focused checks with `python -m unittest tests.test_inference_rushing -q`.

@@ -110,3 +110,37 @@ counted in the report rather than filled, so a later model can decide whether to
 Charted fields are absent from this stage. Their coverage varies by season, and joining them
 before that coverage is measured would put a season-dependent definition inside the canonical
 table.
+
+## Rushing attempt selection
+
+A carry enters the canonical table when it is a designed regular-season rush attempt by a runner
+inside the named scope, with a known team and a recorded signed yardage. Reason order decides
+which reason is credited: postseason, two-point attempt, aborted play, kneel, spike, scramble,
+not a run play, no rush attempt, missing rusher, missing team, missing yardage, outside the
+named rusher scope.
+
+Kneels and spikes are removed because they are recorded as runs without being attempts to gain
+yardage, and a scramble is removed because it is a pass that failed rather than a designed run;
+leaving either in would mix two different decisions into one average. Signed yardage is kept
+whole, including negative carries, because the distribution of rushing yards is the object of
+study and truncating it would remove exactly the plays a runner or a blocking unit most affects.
+
+The scope decides whose carries are counted. `backfield` is the default because the weekly roster
+feed identifies running backs reliably, `non_qb` adds receiver and tight-end handoffs as a
+sensitivity case, and `all` keeps every identified rusher including a quarterback. A scope that
+depends on position refuses to run without a roster: returning an empty table would look like a
+finding.
+
+| Carry | Kept | Reason when removed |
+| --- | --- | --- |
+| Regular-season designed carry, in scope, yardage recorded | yes | - |
+| Kneel, spike, scramble | no | `kneel`, `spike`, `scramble` |
+| Two-point attempt, aborted play, non-run play, no rush attempt | no | `two_point_attempt`, `aborted_play`, `not_a_run_play`, `no_rush_attempt` |
+| Rusher, possession team, or yardage unidentified | no | `missing_rusher`, `missing_team`, `missing_yardage` |
+| Carry by a position outside the scope, or by an untagged player | no | `outside_rusher_scope` |
+
+This table supports an environment association, not a blocker grade. A runner, the linemen who
+blocked for him, the scheme, the quarterback's threat, and the opponent all move together, and
+most linemen appear on the same snaps as each other. Missing `run_location`, `run_gap`,
+`yardline_100`, `ydstogo`, and `down` are retained and counted rather than filled, and defensive
+box count is not joined at this stage because it is plausibly a mediator rather than a context.

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import polars as pl
 
-from .contracts import LOCATIONS, PASSING_CONTRACT, UNKNOWN, canonical_position, validate
+from .contracts import (GAPS, LOCATIONS, PASSING_CONTRACT, POSITIONS, RUSHING_CONTRACT, UNKNOWN,
+                        canonical_position, validate)
 
 PLAY_KEYS = ("game_id", "play_id")
 REASON = "exclusion_reason"
@@ -23,6 +24,22 @@ PASSING_SOURCE_COLUMNS = (
 )
 ROSTER_COLUMNS = ("season", "week", "team", "position")
 CONTEXT_COLUMNS = ("air_yards", "yardline_100", "ydstogo", "down")
+
+RUSHING_SOURCE_COLUMNS = (
+    "season", "week", "game_id", "play_id", "season_type", "posteam", "defteam", "play_type",
+    "rush_attempt", "qb_kneel", "qb_spike", "qb_scramble", "two_point_attempt", "aborted_play",
+    "rusher_player_id", "rushing_yards", "run_location", "run_gap", "yardline_100", "ydstogo",
+    "down",
+)
+RUSHING_CONTEXT_COLUMNS = ("yardline_100", "ydstogo", "down")
+
+# Who counts as the runner. A carry by a quarterback or an untagged player is a different
+# question from a carry by a running back, so the scope is named rather than assumed.
+RUSHER_SCOPES = {
+    "backfield": ("RB", "FB"),
+    "non_qb": ("RB", "FB", "WR", "TE"),
+    "all": POSITIONS,
+}
 
 
 def require_columns(frame, columns, name):
@@ -168,5 +185,98 @@ def passing_targets(pbp, *, positions=None):
         "position_rows_matched": matched,
         "position_rows_unknown": int(table["position"].eq(UNKNOWN).sum()),
         "seasons": [int(season) for season in seasons],
+    }
+    return table, report
+
+
+def _rushing_reasons(scope_labels):
+    """Exclusion reasons in policy order, including carries outside the named rusher scope."""
+    return (
+        ("postseason", pl.col("season_type").cast(pl.String).str.to_uppercase().fill_null("").ne("REG")),
+        ("two_point_attempt", _flag("two_point_attempt")),
+        ("aborted_play", _flag("aborted_play")),
+        ("kneel", _flag("qb_kneel")),
+        ("spike", _flag("qb_spike")),
+        ("scramble", _flag("qb_scramble")),
+        ("not_a_run_play", pl.col("play_type").cast(pl.String).fill_null("").ne("run")),
+        ("no_rush_attempt", _flag("rush_attempt").not_()),
+        ("missing_rusher", pl.col("rusher_player_id").is_null()),
+        ("missing_team", pl.col("posteam").is_null() | pl.col("defteam").is_null()),
+        ("missing_yardage", pl.col("rushing_yards").cast(pl.Float64, strict=False).is_null()),
+        ("outside_rusher_scope", pl.col("position").is_in(list(scope_labels)).not_()),
+    )
+
+
+def _rusher_scope(scope):
+    if scope not in RUSHER_SCOPES:
+        raise ValueError(f"unknown rusher scope {scope!r}; expected one of {sorted(RUSHER_SCOPES)}")
+    return RUSHER_SCOPES[scope]
+
+
+def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
+    """The canonical rushing attempt table plus the record of what preparation removed.
+
+    A kept play is a designed regular-season carry by a runner inside the named scope, with a
+    known team and a recorded signed yardage. Kneels, spikes, and scrambles happen on plays
+    recorded as runs but are not rushing attempts, and a carry by a quarterback is a different
+    question from a carry by a running back, so it needs its own scope.
+    """
+    if not isinstance(pbp, pl.DataFrame):
+        raise TypeError(f"play-by-play: expected a polars DataFrame, found {type(pbp).__name__}")
+    scope_labels = _rusher_scope(rusher_scope)
+    if positions is None and rusher_scope != "all":
+        raise ValueError(f"rusher scope {rusher_scope!r} needs weekly roster positions")
+    require_columns(pbp, RUSHING_SOURCE_COLUMNS, "play-by-play")
+    require_unique(pbp, PLAY_KEYS, "play-by-play")
+    located = pbp.with_columns(pl.col("rusher_player_id").cast(pl.String).alias("player_id"),
+                               pl.col("posteam").cast(pl.String).alias("team"))
+    if positions is None:
+        located = located.with_columns(pl.lit(UNKNOWN, dtype=pl.String).alias("position"))
+    else:
+        located = located.join(positions, on=["season", "week", "team", "player_id"], how="left",
+                               validate="m:1")
+        located = located.with_columns(pl.col("position").fill_null(UNKNOWN))
+    reasons = _rushing_reasons(scope_labels)
+    tagged = _tag(located, reasons)
+    kept = tagged.filter(pl.col(REASON).is_null())
+    table = kept.select(
+        pl.col("season").cast(pl.Int32),
+        pl.col("week").cast(pl.Int32),
+        pl.col("game_id").cast(pl.String),
+        pl.col("play_id").cast(pl.Int64),
+        pl.col("team").cast(pl.String),
+        pl.col("defteam").cast(pl.String),
+        pl.col("rusher_player_id").cast(pl.String).alias("rusher_id"),
+        pl.col("rushing_yards").cast(pl.Float64),
+        _label("run_location", LOCATIONS).alias("run_location"),
+        _label("run_gap", GAPS).alias("run_gap"),
+        pl.col("yardline_100").cast(pl.Float64),
+        pl.col("ydstogo").cast(pl.Float64),
+        pl.col("down").cast(pl.Int32),
+        pl.col("position").cast(pl.String),
+    )
+    validate(table, RUSHING_CONTRACT)
+    by_season = {}
+    for season in sorted(tagged["season"].unique().to_list()):
+        block = tagged.filter(pl.col("season") == season)
+        by_season[str(int(season))] = {
+            "source_rows": block.height,
+            "target_rows": int(block[REASON].is_null().sum()),
+            "excluded": _reason_counts(block, reasons),
+        }
+    report = {
+        "source_rows": pbp.height,
+        "target_rows": table.height,
+        "excluded_rows": tagged.height - table.height,
+        "rusher_scope": rusher_scope,
+        "scope_positions": list(scope_labels),
+        "exclusions": _reason_counts(tagged, reasons),
+        "exclusions_by_season": by_season,
+        "missing_context": _context_report(table, RUSHING_CONTEXT_COLUMNS),
+        "unknown_run_location": int(table["run_location"].eq(UNKNOWN).sum()),
+        "unknown_run_gap": int(table["run_gap"].eq(UNKNOWN).sum()),
+        "position_rows_matched": int(table["position"].ne(UNKNOWN).sum()) if positions is not None else 0,
+        "position_rows_unknown": int(table["position"].eq(UNKNOWN).sum()),
+        "seasons": [int(season) for season in sorted(table["season"].unique().to_list())],
     }
     return table, report
