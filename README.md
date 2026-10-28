@@ -196,3 +196,13 @@ The `prepare` command builds both canonical tables from the cached partitions un
 The command reads only what is already cached. It has no refresh flag, so a missing `pbp` partition raises `FileNotFoundError` and exits non-zero instead of starting a download; use `python -m hierarchical_football.data ingest --tables pbp rosters_weekly` first.
 
 Run the focused checks with `python -m unittest tests.test_inference_cli -q`.
+
+## First-stage extractor script
+
+```powershell
+uv run python prepare_inference_tables.py --raw-root data/raw --output-root data/processed/inference --seasons 2022 2023 2024 2025
+```
+
+The repository-root script is the command line the research plan documents. It takes the same four options as `python -m hierarchical_football.inference prepare`, calls the same `build` function, and prints the same one-line JSON summary. It requires the package to be importable, so run it with `uv run` from the repository root.
+
+Run the focused checks with `python -m unittest tests.test_prepare_script -q`.

@@ -203,3 +203,15 @@ table built from fewer seasons looks exactly like a table that was supposed to h
 
 The command does not validate a previously written table, compare it with an earlier build, or
 publish anything. It writes to `--output-root` and stops.
+
+## First-stage extractor script
+
+The repository-root script and the package command are two entry points to one implementation, and
+that duplication is deliberate. The research plan publishes a root-level command line for the first
+stage, while the maintained surface is the package command that `uv run python -m
+hierarchical_football.inference` exposes. The script holds no selection policy of its own: it parses
+the documented options and calls `build`.
+
+It does not vendor the preparation code, so it needs the package installed in the environment it
+runs in. If the two entry points ever disagree, the package command is the one to trust and the
+script is the one to fix.
