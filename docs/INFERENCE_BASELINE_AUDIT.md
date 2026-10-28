@@ -1,5 +1,13 @@
 # First baseline fit and holdout comparison
 
+> **Correction.** The headline below - that the passer-receiver identity block does not improve
+> held-out completion loss - holds at the one shared penalty of 1.0 this run used, and it does not
+> survive a penalty chosen on an earlier season. `docs/INFERENCE_MODEL_DEVELOPMENT.md` records the
+> follow-up: at a penalty selected on 2022 -> 2023 the same block improves both scored seasons with
+> intervals below zero, and on the inner season the fit at penalty 1.0 was already scoring worse than
+> the context-only model. Everything else in this record stands, including the rushing result, which
+> was re-measured at the selected penalty and still holds.
+
 Evidence from one local run of `hierarchical_football.inference.baselines` and
 `hierarchical_football.inference.evaluation` over the cached canonical tables. It is not a
 test expectation and not the research program's final result.
