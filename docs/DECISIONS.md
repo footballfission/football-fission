@@ -188,3 +188,18 @@ without rosters.
 The manifest does not make the build reproducible from nothing: it records what was read, not where
 it could be fetched again. It also does not verify that a cached partition was the source state at
 some earlier date; the ingest sidecars already record `historical_asof_verified: false`.
+
+## Extractor command surface
+
+The extractor command prepares tables from the local cache and nothing else. It has no refresh or
+download option, because fetching belongs to `hierarchical_football.data ingest`, which writes the
+partitions and reports that the inference manifest then hashes. A command that both downloaded and
+prepared would hide which source state a published table came from.
+
+It prints one line of JSON rather than a progress log, and it fails with the exception it hit: a
+missing `pbp` partition, an absent cached roster under a position-scoped build, or a duplicate play
+key all exit non-zero with the reason on stderr. Silence would be worse than failure here, because a
+table built from fewer seasons looks exactly like a table that was supposed to have fewer seasons.
+
+The command does not validate a previously written table, compare it with an earlier build, or
+publish anything. It writes to `--output-root` and stops.

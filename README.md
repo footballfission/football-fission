@@ -184,3 +184,15 @@ Run the focused checks with `python -m unittest tests.test_inference_audits -q`.
 Reading is local only. `build` never starts a download, so a season without a cached `pbp` partition raises `FileNotFoundError` rather than quietly producing a smaller table. Without cached rosters, a position-scoped rushing table raises `ValueError` and the caller can either cache rosters or ask for `rusher_scope="all"`.
 
 Run the focused checks with `python -m unittest tests.test_inference_build -q`.
+
+## Inference extractor command
+
+```powershell
+uv run python -m hierarchical_football.inference prepare --seasons 2022 2023 2024 2025 --raw-root data/raw --output-root data/processed/inference --rusher-scope backfield
+```
+
+The `prepare` command builds both canonical tables from the cached partitions under `--raw-root` and prints a one-line JSON summary: `passing_targets` and `rushing_plays` row counts, the number of input partitions named in the manifest, and the total number of excluded plays across both tables. `--rusher-scope` accepts `backfield`, `non_qb`, or `all`.
+
+The command reads only what is already cached. It has no refresh flag, so a missing `pbp` partition raises `FileNotFoundError` and exits non-zero instead of starting a download; use `python -m hierarchical_football.data ingest --tables pbp rosters_weekly` first.
+
+Run the focused checks with `python -m unittest tests.test_inference_cli -q`.
