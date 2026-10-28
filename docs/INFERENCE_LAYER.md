@@ -18,6 +18,7 @@ which checks hold it.
 - [Inference extractor command](#inference-extractor-command)
 - [First-stage extractor script](#first-stage-extractor-script)
 - [Team-game receiving panels](#team-game-receiving-panels)
+- [Chronological team-game splits](#chronological-team-game-splits)
 - [Baseline estimators](#baseline-estimators)
 - [Baseline evaluation](#baseline-evaluation)
 - [Partial pooling for identified players](#partial-pooling-for-identified-players)
@@ -61,6 +62,7 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `evaluation.py` | Chronological split, completion and yardage metrics, paired game-clustered bootstrap intervals | `tests.test_inference_evaluation` |
 | `design.py` | Standardized catch-rate and log-odds contrasts under a reference population, with support reporting | `tests.test_inference_design` |
 | `panels.py` | Team-game target totals, available candidates, and the `OTHER` residual | `tests.test_inference_panels` |
+| `splits.py` | The week cutoff that separates training team games from the weeks a model predicts | `tests.test_inference_splits` |
 | `__main__.py` | The `prepare` command over the local cache | `tests.test_inference_cli` |
 
 Every module is offline. They read the cache under `data/raw`, write under the output root they are
@@ -198,6 +200,29 @@ The candidate index orders players by `player_id` inside each team game. It neve
 targets, because an index sorted by the label would put the answer in the row key.
 
 Run the focused checks with `python -m unittest tests.test_inference_panels -q`.
+
+## Chronological team-game splits
+
+`hierarchical_football.inference.splits.team_game_split(panel, candidates, *, train_through)` cuts the
+panel at one week into three bundles. `train` holds every team game at or before the cutoff with its
+candidate rows and their targets; `predict` holds every team game after it with its candidate rows and
+no label of any kind; `observed` holds the withheld labels for exactly the predicted team games. The
+`manifest` names the cutoff, both week ranges, the row counts, and the label columns that were withheld.
+
+The ordering key is `(season, week)`, not the week number, because week 18 of one season is older than
+week 1 of the next. A cutoff is therefore a season and a week together.
+
+A team game is the prediction unit, so both teams of a game and every teammate of a team game land on
+the same side of the cutoff. The split refuses a panel whose game straddles the cutoff, a cutoff with no
+training history, a cutoff with nothing left to predict, a cutoff whose team games have no candidates,
+a team game that appears twice, and a candidate whose team game is not in the panel.
+
+The prediction bundle drops the outcome columns rather than trusting a caller not to read them:
+`targets`, `candidate_targets`, `other_targets`, and `candidates` are absent from it and returned in the
+observed bundle instead. That is the mechanical half of the plan's as-of gate; the other half is that no
+feature built from these bundles may be computed from a later week.
+
+Run the focused checks with `python -m unittest tests.test_inference_splits -q`.
 
 ## Baseline estimators
 

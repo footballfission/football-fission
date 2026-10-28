@@ -25,6 +25,7 @@ a changelog: each section describes why the current behavior is what it is.
 - [Summing a group of gains without borrowing or reading past the array](#summing-a-group-of-gains-without-borrowing-or-reading-past-the-array)
 - [Giving a weak penalty enough iterations to converge](#giving-a-weak-penalty-enough-iterations-to-converge)
 - [Team-game panels: candidates, the OTHER residual, and a label-free index](#team-game-panels-candidates-the-other-residual-and-a-label-free-index)
+- [Chronological splits by week, and what a prediction bundle may carry](#chronological-splits-by-week-and-what-a-prediction-bundle-may-carry)
 - [One word per concept across the inference layer](#one-word-per-concept-across-the-inference-layer)
 - [The charted pass location is the one context column recorded at the throw](#the-charted-pass-location-is-the-one-context-column-recorded-at-the-throw)
 
@@ -465,6 +466,31 @@ What the panel does not promise: the weekly roster is a weekly snapshot and not 
 active list, so a candidate may have been inactive on Sunday; roster carry-forward is not used here;
 snap counts and target depth are not attached; and the split that will gate these rows is a separate
 step.
+
+## Chronological splits by week, and what a prediction bundle may carry
+
+A cutoff names a season and a week, and the split orders team games by that pair rather than by the week
+number: week 18 of 2023 is older than week 1 of 2024, and a model that learned from the previous season
+must not be handed the following one by accident. Everything at or before the cutoff is training data;
+everything after it is prediction data.
+
+The prediction bundle carries no label at all. `targets`, `candidate_targets`, `other_targets`, and
+`candidates` are dropped from the predicted panel, and `targets` is dropped from its candidate rows; the
+observed bundle returns exactly those columns for exactly those team games. Dropping the columns is
+mechanical and therefore checkable, which is the point: an as-of gate that depends on a caller not
+reading a column is not a gate.
+
+A team game is the unit, so the split refuses a panel whose game has team games on both sides of the
+cutoff. Both teams of a game and every teammate of a team game share one week, so a week cutoff keeps
+them together without a further rule; the refusal covers the case where the panel itself is inconsistent
+about when a game was played. The split also refuses a cutoff with no history, a cutoff with nothing left
+to predict, predicted team games with no candidates (nothing could be allocated), a team game that
+appears twice, and a candidate whose team game the panel does not contain.
+
+What the split does not do: it does not build features, and it does not promise that a feature computed
+outside it is safe. A lag or a rolling average must still be computed from training weeks only. It also
+does not walk forward by itself; a caller that wants expanding-history folds takes one cutoff per fold
+from the same function, and the plan's early-season floor is the caller's rule to state.
 
 ## One word per concept across the inference layer
 

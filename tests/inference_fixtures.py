@@ -83,3 +83,34 @@ def roster_frame(*changes):
     """One weekly roster row per change, keyed by player."""
     rows = [{**ROSTER_ROW, "gsis_id": f"wr{index + 1}", **change} for index, change in enumerate(changes)]
     return pl.DataFrame(rows, schema_overrides=ROSTER_SCHEMA)
+
+
+PANEL_ROW = dict(
+    season=2024, week=1, game_date="2024-09-08", game_id="g1", team="AAA", opponent="BBB",
+    is_home=True, targets=3, candidates=2, candidate_targets=2, other_targets=1,
+)
+CANDIDATE_ROW = dict(
+    season=2024, week=1, game_id="g1", team="AAA", candidate_index=0, player_id="wr1",
+    position="WR", targets=2,
+)
+
+PANEL_SCHEMA = dict(
+    season=pl.Int32, week=pl.Int32, game_date=pl.String, game_id=pl.String, team=pl.String,
+    opponent=pl.String, is_home=pl.Boolean, targets=pl.Int32, candidates=pl.Int32,
+    candidate_targets=pl.Int32, other_targets=pl.Int32,
+)
+CANDIDATE_SCHEMA = dict(
+    season=pl.Int32, week=pl.Int32, game_id=pl.String, team=pl.String, candidate_index=pl.Int32,
+    player_id=pl.String, position=pl.String, targets=pl.Int32,
+)
+
+
+def panel_frame(*changes):
+    """One team-game panel row per change, with the keys the caller names."""
+    return pl.DataFrame([{**PANEL_ROW, **change} for change in changes], schema_overrides=PANEL_SCHEMA)
+
+
+def candidate_frame(*changes):
+    """One candidate row per change, with the keys the caller names."""
+    return pl.DataFrame([{**CANDIDATE_ROW, **change} for change in changes],
+                        schema_overrides=CANDIDATE_SCHEMA)
