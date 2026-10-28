@@ -279,6 +279,9 @@ def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
         "unknown_run_gap": int(table["run_gap"].eq(UNKNOWN).sum()),
         "position_rows_matched": int(table["position"].ne(UNKNOWN).sum()) if positions is not None else 0,
         "position_rows_unknown": int(table["position"].eq(UNKNOWN).sum()),
+        # What the scope actually kept, beside what it declared: a declared position the weekly
+        # roster feed never carries cannot appear in the table, and this is where that shows up.
+        "kept_positions": {label: int(table["position"].eq(label).sum()) for label in scope_labels},
         "seasons": [int(season) for season in sorted(table["season"].unique().to_list())],
     }
     return table, report

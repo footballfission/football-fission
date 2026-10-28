@@ -8,7 +8,8 @@ Hierarchical parametric NFL models for simulating player statistics and fantasy-
 - Local feature-matrix construction, scoring functions, forecast metrics, and clustered uncertainty helpers.
 - A runnable WR example that accepts prepared training and prediction panels.
 - The [team opportunity plan](docs/TEAM_OPPORTUNITY_PLAN.md), model design, and historical comparison results.
-- A [project file inventory](PROJECT_FILES.json) describing the package layout.
+- A [project file inventory](PROJECT_FILES.json) of the tracked tree, kept honest by a check in
+  `tests/test_repository_hygiene.py`.
 
 The package contains model source code and supporting utilities. Train the models on prepared historical panels before generating forecasts.
 
@@ -20,11 +21,14 @@ From this folder, use either:
 uv sync
 ```
 
-or, inside your chosen Python environment:
+or, with `uv`'s own installer inside the environment it manages:
 
 ```powershell
-python -m pip install -e .
+uv pip install -e .
 ```
+
+A `uv`-managed virtual environment has no `pip` module, so `python -m pip install -e .` fails there.
+Use it only in a non-`uv` environment that already provides `pip`.
 
 Python 3.10 or newer is required. Dependencies are declared in `pyproject.toml`. Dependency versions are lower bounds rather than a reproduction lock. Record a lockfile and environment for future experiments.
 
@@ -70,20 +74,29 @@ Current samplers produce player distributions. They do not form a team-constrain
 ## Folder map
 
 ```text
-src/hierarchical_football/    Existing models and local support code
-examples/predict_wr.py       Prepared-panel training and prediction example
-docs/DATA_CONTRACT.md        Input/output requirements and data limitations
-docs/TEAM_OPPORTUNITY_PLAN.md Future team/injury research roadmap
-docs/*RESULTS.md             Historical comparison snapshots
-PROJECT_FILES.json           Package file inventory
-pyproject.toml              Standalone package configuration
+prepare_inference_tables.py            Root entry point for the inference extractor
+src/hierarchical_football/             Position models, shared support code, and the data package
+src/hierarchical_football/data/        Raw ingest, roster history, panels, splits, and reports
+src/hierarchical_football/inference/   Canonical play tables, audits, baselines, pooling, contrasts
+examples/predict_wr.py                 Prepared-panel training and prediction example
+tests/                                 Offline checks, one module per unit under test
+docs/DATA_CONTRACT.md                  Input/output requirements and data limitations
+docs/DECISIONS.md                      Policy records, one per behaviour change
+docs/PIPELINE_VALIDATION.md            Pipeline verification record
+docs/INFERENCE_DATA_AUDIT.md           Observed counts of the first extraction
+docs/INFERENCE_BASELINE_AUDIT.md       Observed metrics of the first baseline fit
+docs/INFERENCE_MODEL_DEVELOPMENT.md    Penalty, pooling, and block evidence
+docs/TEAM_OPPORTUNITY_PLAN.md          Future team/injury research roadmap
+docs/*RESULTS.md                       Historical comparison snapshots
+PROJECT_FILES.json                     Tracked file inventory
+pyproject.toml, uv.lock                Package configuration and the resolved environment
 ```
 
 Data ingestion and feature generation are the caller's responsibility. Start with the prepared-panel example and the data contract, then follow the team opportunity plan for future extensions.
 
 ## Repository layout and ignored paths
 
-Tracked source lives in `src/hierarchical_football/`, including the `data` subpackage that ingests raw feeds and writes prepared panels. Everything a pipeline run generates stays untracked: `/data/` (raw cache, processed panels, week splits, forecasts), plus `artifacts/`, `*.parquet`, `*.npz`, `*.pkl`, `notes/`, and `.venv/`.
+Tracked source lives in `src/hierarchical_football/`, including the `data` subpackage that ingests raw feeds and writes prepared panels, and the `inference` subpackage that prepares the play-level tables of the research program. Everything a pipeline run generates stays untracked: `/data/` (raw cache, processed panels, week splits, forecasts), plus `artifacts/`, `*.parquet`, `*.npz`, `*.pkl`, the scratch directory the `.gitignore` rule names, and `.venv/`.
 
 The `/data/` rule is anchored to the repository root, so it does not hide `src/hierarchical_football/data/`. It covers every file a run writes under `data/`, including the `.json` manifests and per-file sidecars that record row counts and content hashes; those describe one local run and are not shared inputs.
 
@@ -156,6 +169,8 @@ Run the focused checks with `python -m unittest tests.test_inference_passing -q`
 | `all` | every identified rusher, including `QB` and an untagged player |
 
 The two narrower scopes need `positions`, and raise `ValueError` without them rather than returning an empty table. A carry outside the scope is counted under `outside_rusher_scope`, like every other exclusion, so `report["target_rows"]` plus the exclusions always equals the source row count. The report also carries `rusher_scope`, `scope_positions`, `missing_context` for `yardline_100`, `ydstogo`, and `down`, and the `UNKNOWN` counts for `run_location` and `run_gap`.
+
+A declared scope label is not a promise that carries exist for it. The weekly roster feed tags no fullback in the four cached seasons (`position` holds `RB` but never `FB` or `HB`), so `backfield` keeps running backs only there, and `report["kept_positions"]` counts what each declared label actually kept. A `FB` count of zero is that fact stated rather than hidden.
 
 Run the focused checks with `python -m unittest tests.test_inference_rushing -q`.
 
@@ -269,7 +284,7 @@ Plays are clustered inside games, so every interval here resamples whole cluster
 `clustered_metric(losses, *, clusters)` gives the percentile interval of one model's mean row loss, and
 `bootstrap_difference(first, second, *, clusters)` gives the paired interval of the loss difference: a
 positive estimate means the first model is worse, and an interval that stays above zero is evidence
-against "no difference" in the losses. `clustered_comparison(models, *, clusters, reference=...)` reports
+against "no difference" in the losses. `clustered_comparison(losses, *, clusters, reference=...)` reports
 every model's interval plus each model's paired difference against the reference, which is the
 context-only baseline unless the caller names another.
 

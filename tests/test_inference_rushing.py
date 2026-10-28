@@ -127,6 +127,16 @@ class RushingPlays(unittest.TestCase):
         self.assertEqual(report["scope_positions"], ["RB", "FB"])
         self.assertEqual(report["position_rows_matched"], 4)
 
+    def test_the_report_counts_the_positions_the_scope_actually_kept(self):
+        """A declared position the roster feed never carries must show up as an empty count."""
+        table, report = mixed_table()
+        self.assertEqual(table["position"].unique().to_list(), ["RB"])
+        self.assertEqual(report["kept_positions"], {"RB": 4, "FB": 0})
+
+    def test_the_kept_counts_follow_a_wider_scope(self):
+        _, report = mixed_table("non_qb")
+        self.assertEqual(report["kept_positions"], {"RB": 4, "FB": 0, "WR": 1, "TE": 0})
+
 
 class RusherScope(unittest.TestCase):
     def test_non_qb_scope_keeps_handoffs_to_receivers(self):

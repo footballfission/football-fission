@@ -357,3 +357,16 @@ The fit is returned rather than refused, because a caller searching a penalty gr
 the grid to be measurable, and because the fact is what matters: a coefficient that is not at the optimum
 is still useful evidence, as long as the reader knows. A closed-form solver reports `converged` true with
 no iteration count, which is why the flag is a triple and not a boolean.
+
+## A declared rusher scope is not a promise of carries
+
+`rusher_scope` declares which canonical positions belong to the table, and the preparation report now
+carries `kept_positions` beside `scope_positions`, so the declared labels and the labels that produced
+rows are both visible. The weekly roster feed does not tag fullbacks in the cached seasons - its
+`position` column holds `RB` but never `FB` or `HB`, while `depth_chart_position` does - so `backfield`
+keeps running backs only, and a `FB` count of zero is the honest report of that rather than a defect in
+the filter.
+
+The alternative, resolving fullbacks from the depth chart, is a real decision about which feed owns a
+player's position and would change the population and every downstream number. Until that decision is
+made, the report states the gap instead of a footnote claiming a scope the source cannot fill.

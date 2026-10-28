@@ -427,8 +427,9 @@ def fit_rushing(table, *, identities=(), composites=None, support=False, penalty
     Fitting the mean of a skewed, heavy-tailed outcome with a squared penalty is a pragmatic first
     step, not the last one: the plan leaves robust, mixture, and quantile models open. `penalty` is
     the ridge alpha applied to the fitted terms, so a larger penalty shrinks them harder. Add
-    `identities=("rusher_id",)` for the runner baseline and `identities=("rusher_id", "qb_id")`
-    only where the quarterback on the field is attributed reliably.
+    `identities=("rusher_id",)` for the runner baseline. The contract declares `qb_id` as an optional
+    column and `prepare` does not write it, so a quarterback block needs a caller-supplied attribution
+    before it can be fitted at all; the error names the missing column if it is not there.
     """
     penalty = penalty_value(penalty)
     design = rushing_design(table, identities=identities, composites=composites, support=support)
