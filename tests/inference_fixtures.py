@@ -53,3 +53,33 @@ def empty_passing_frame(**extra):
     """A canonical passing frame with no rows, optionally with charted columns attached."""
     schema = {**PASSING_SCHEMA, **extra}
     return pl.DataFrame(schema=[(column, dtype) for column, dtype in schema.items()])
+
+
+GAME_ROW = dict(
+    season=2024, week=1, game_id="g1", game_date="2024-09-08", home_team="AAA", away_team="BBB",
+    season_type="REG",
+)
+ROSTER_ROW = dict(
+    season=2024, week=1, team="AAA", gsis_id="wr1", position="WR", status="ACT", game_type="REG",
+)
+
+GAME_SCHEMA = dict(
+    season=pl.Int32, week=pl.Int32, game_id=pl.String, game_date=pl.String, home_team=pl.String,
+    away_team=pl.String, season_type=pl.String,
+)
+ROSTER_SCHEMA = dict(
+    season=pl.Int32, week=pl.Int32, team=pl.String, gsis_id=pl.String, position=pl.String,
+    status=pl.String, game_type=pl.String,
+)
+
+
+def game_frame(*changes):
+    """One play-by-play game row per change, keyed by game."""
+    rows = [{**GAME_ROW, "game_id": f"g{index + 1}", **change} for index, change in enumerate(changes)]
+    return pl.DataFrame(rows, schema_overrides=GAME_SCHEMA)
+
+
+def roster_frame(*changes):
+    """One weekly roster row per change, keyed by player."""
+    rows = [{**ROSTER_ROW, "gsis_id": f"wr{index + 1}", **change} for index, change in enumerate(changes)]
+    return pl.DataFrame(rows, schema_overrides=ROSTER_SCHEMA)

@@ -10,7 +10,8 @@ Hierarchical parametric NFL models for simulating player statistics and fantasy-
 - The [team opportunity plan](docs/TEAM_OPPORTUNITY_PLAN.md), model design, and historical comparison results.
 - A play-level [inference research layer](docs/INFERENCE_LAYER.md): canonical tables built from cached
   play-by-play, coverage and pairing audits, regularized baselines with per-block pooling, clustered
-  holdout evaluation, and standardized contrasts.
+  holdout evaluation, standardized contrasts, and the team-game receiving panels with candidate rosters
+  that the opportunity models read.
 - The [policy decisions](docs/DECISIONS.md) behind each behaviour, and a
   [project file inventory](PROJECT_FILES.json) of the tracked tree, kept honest by a check in
   `tests/test_repository_hygiene.py`.

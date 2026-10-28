@@ -17,6 +17,7 @@ which checks hold it.
 - [Writing the inference tables](#writing-the-inference-tables)
 - [Inference extractor command](#inference-extractor-command)
 - [First-stage extractor script](#first-stage-extractor-script)
+- [Team-game receiving panels](#team-game-receiving-panels)
 - [Baseline estimators](#baseline-estimators)
 - [Baseline evaluation](#baseline-evaluation)
 - [Partial pooling for identified players](#partial-pooling-for-identified-players)
@@ -59,6 +60,7 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `partial_pooling.py` | A player penalty separate from the context penalty, chosen on an inner chronological split | `tests.test_inference_partial_pooling` |
 | `evaluation.py` | Chronological split, completion and yardage metrics, paired game-clustered bootstrap intervals | `tests.test_inference_evaluation` |
 | `design.py` | Standardized catch-rate and log-odds contrasts under a reference population, with support reporting | `tests.test_inference_design` |
+| `panels.py` | Team-game target totals, available candidates, and the `OTHER` residual | `tests.test_inference_panels` |
 | `__main__.py` | The `prepare` command over the local cache | `tests.test_inference_cli` |
 
 Every module is offline. They read the cache under `data/raw`, write under the output root they are
@@ -162,6 +164,40 @@ The repository-root script is the command line the research plan documents. It t
 
 Run the focused checks with `python -m unittest tests.test_prepare_script -q`.
 
+
+## Team-game receiving panels
+
+`hierarchical_football.inference.panels` materializes the unit of observation the two opportunity
+models share. The volume model asks how many targets a team's offense generates in a game; the
+allocation model asks how that total splits across the receivers who were available. One row per team
+game carries the first answer, one row per available candidate carries the second, and the `OTHER`
+residual carries whatever the candidates do not explain.
+
+`team_game_panel(passing, pbp, rosters)` returns `(panel, candidates)`. The panel has one row per
+regular-season team game in the cached play-by-play, with `team`, `opponent`, `is_home`, `game_date`,
+the recorded `targets`, the number of `candidates`, the `candidate_targets` they drew, and the
+`other_targets` that went to nobody on the candidate list. The candidates frame has one row per
+available candidate with a `candidate_index`, his `player_id`, his canonical `position`, and the
+`targets` he drew.
+
+`game_context(pbp)` reduces play-by-play to one row per regular-season game, and refuses a game whose
+plays disagree about their week or date. `team_games(passing, games)` builds the team-game rows from
+the canonical passing table, so a team game whose offense recorded no in-scope target keeps an observed
+zero rather than a null, and a team game the cache does not contain gets no row at all. It refuses a
+passing row whose game or week the games feed contradicts. `available_players(rosters)` keeps the
+weekly roster's active rows with a modelled position: `WR`, `RB`, or `TE`. `candidates(passing,
+rosters, panel)` joins the two and assigns the index. `conservation(panel, candidates)` returns the
+split as a report and raises on any violation.
+
+`OTHER` is a category, not an error term. A lineman reporting eligible, a quarterback catching a
+deflection, or a receiver the roster feed does not place on the team that week draws a real target that
+no candidate owns. Across the four cached seasons that is 149 targets of 68,408 (0.22%) in 104 team
+games, and the allocation model has to carry it or the pool will not close.
+
+The candidate index orders players by `player_id` inside each team game. It never orders them by
+targets, because an index sorted by the label would put the answer in the row key.
+
+Run the focused checks with `python -m unittest tests.test_inference_panels -q`.
 
 ## Baseline estimators
 
@@ -321,7 +357,9 @@ refresh of the cache can move the numbers.
   attached, and their per-season coverage is unmeasured.
 - No participation join, and no reconciliation of derived game and team counts against a weekly table.
 - No posterior layer: player terms are regularized point estimates with a penalty sensitivity range, not
-  intervals, and the layer never turns a term into a ranking.
+  intervals, and the layer never turns a term into a ranking. The team-game panel that the opportunity
+  models need is built and checked for conservation, but no volume and no allocation model is fitted on
+  it yet.
 - No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency, so the
   pooling and contrast stages are library functions with no entry point in the tree. The records in
   `docs/` reached them from scratch drivers, and `tests/test_inference_partial_pooling.py` and

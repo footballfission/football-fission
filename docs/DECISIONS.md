@@ -24,6 +24,7 @@ a changelog: each section describes why the current behavior is what it is.
 - [A declared rusher scope is not a promise of carries](#a-declared-rusher-scope-is-not-a-promise-of-carries)
 - [Summing a group of gains without borrowing or reading past the array](#summing-a-group-of-gains-without-borrowing-or-reading-past-the-array)
 - [Giving a weak penalty enough iterations to converge](#giving-a-weak-penalty-enough-iterations-to-converge)
+- [Team-game panels: candidates, the OTHER residual, and a label-free index](#team-game-panels-candidates-the-other-residual-and-a-label-free-index)
 - [One word per concept across the inference layer](#one-word-per-concept-across-the-inference-layer)
 - [The charted pass location is the one context column recorded at the throw](#the-charted-pass-location-is-the-one-context-column-recorded-at-the-throw)
 
@@ -426,6 +427,44 @@ The alternative is a number that looks like an optimum because a counter reached
 cannot move a fit that already converged, so the outer comparisons recorded in the audit documents stand;
 the weak-penalty rows of the 2023 selection grid in `docs/INFERENCE_MODEL_DEVELOPMENT.md` were re-measured
 and are marked there.
+
+## Team-game panels: candidates, the OTHER residual, and a label-free index
+
+The two opportunity models need one object: a team game, the targets its offense recorded, and the
+receivers who could have drawn them. `inference.panels` builds it from what the layer already has - the
+canonical passing table, the cached play-by-play for game context, and the weekly rosters for
+availability - rather than from the processed panels the plan names, because this checkout's cache
+holds play-by-play and rosters and not the weekly stat or schedule partitions. The unit of observation
+is unchanged; only the source is.
+
+A candidate is a player the weekly roster lists as **active** for that team and week with a position of
+`WR`, `RB`, or `TE`. Practice-squad, reserve, and inactive rows are not candidates, because a player who
+cannot take the field cannot draw a target and counting him would put a zero in a pool he was never part
+of. Other positions are not candidates either: a lineman who reports eligible is a real receiver for one
+play, not a member of the allocation pool.
+
+Whatever the candidates do not explain lands in `OTHER`, which the allocation model carries as a
+category. In the four cached seasons that is 149 targets of 68,408 (0.22%), spread over 104 team games.
+Small, but it is the difference between a pool that closes and a pool that quietly loses a target.
+
+Conservation is checked rather than assumed. `team_game_panel` returns the candidate targets and the
+`OTHER` targets beside the team total, and raises if a candidate explains more targets than the team
+recorded or if the three numbers do not add up. A build that cannot satisfy the equality is a bug in the
+join, not a row to clip.
+
+The candidate index orders players by `player_id` within a team game. Sorting by targets would put the
+label in the row key and would change the key whenever a week changed, so permutation tests and
+position-stable joins would both depend on the outcome.
+
+Zero targets are recorded as zeros when the cache contains the game, because the totals and the plays
+come from the same feed: a team game with no in-scope target is a measured zero, not an unknown. A team
+game the cache does not contain produces no row, and the panel never invents one. Coverage in the cached
+seasons is complete: all 2,174 team games have 8 to 14 candidates.
+
+What the panel does not promise: the weekly roster is a weekly snapshot and not a confirmed game-day
+active list, so a candidate may have been inactive on Sunday; roster carry-forward is not used here;
+snap counts and target depth are not attached; and the split that will gate these rows is a separate
+step.
 
 ## One word per concept across the inference layer
 
