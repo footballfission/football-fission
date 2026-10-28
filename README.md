@@ -321,3 +321,29 @@ A penalty here is a variance component, not a probability of skill. The fit reco
 the column scale in `report()["block_penalties"]`.
 
 Run the focused checks with `python -m unittest tests.test_inference_partial_pooling -q`.
+
+## Standardized contrasts and support
+
+`hierarchical_football.inference.design` answers the plan's second question: not what a player did in the
+contexts he saw, but what the fitted model predicts for two players under one shared population of
+pre-play contexts Q. `standardized_prediction(fitted, population, *, levels=..., scale=...)` averages the
+fitted value over Q with any identity level forced onto every row, and
+`standardized_contrast(fitted, population, *, identity, left, right, fixed=...)` reports the difference of
+the two arms with the fixed levels recorded.
+
+Two scales are offered because the plan names two quantities: `scale="probability"` is the catch rate
+under Q, and `scale="log_odds"` is the adjusted log-odds deviation. They are not interchangeable.
+Averaging a sigmoid is not the sigmoid of an average, so on the probability scale a fixed partner changes
+a receiver contrast even in an additive model, while on the log-odds scale it does not.
+
+Every contrast travels with its support. `context_cells` groups rows into comparable situations, and
+`player_support(fitting_table, population, *, identity, player, ...)` reports the share of Q that a
+player's own rows cover, the share they cover well, and the share they never faced at all, with the
+unsupported cells named. `standardized_prediction` marks a player with no fitted column at all in
+`unseen_identities`: his arm is the average identified player rather than a term of his own.
+
+`contrast_sensitivity(fitter, population, ..., penalties=...)` refits across penalties and reports the
+range of the contrast. It is labelled a penalty sensitivity range rather than a confidence interval,
+because it measures one modelling choice and not sampling error.
+
+Run the focused checks with `python -m unittest tests.test_inference_design -q`.

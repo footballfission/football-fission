@@ -1,0 +1,271 @@
+"""Standardized contrasts under a reference population, with the support they rest on.
+
+A fitted baseline answers a conditional question: what does this player do in the contexts he
+actually saw? A contrast asks a different one - what does the model predict for two players under
+one shared distribution of pre-play contexts Q? The answer is only as good as the overlap between Q
+and what each player actually did, so every contrast here travels with a support report that names
+the part of Q a player never faced.
+
+Nothing here is a causal effect. Holding the context fixed removes the observed context difference
+between two players. It does not remove the coach, the coverage, the route assignment, the health,
+or the game script, none of which are in the model. A standardized contrast is a statement about the
+fitted model under Q, and no more.
+
+The population is a slice of a canonical table rather than a fresh grid, because the plan asks for
+an observed-support mix and because a canonical frame is what the design builder can score. Cell
+labels turn a row count into an overlap measure: the share of Q that a player's own rows cover, and
+the share that they do not, which is the extrapolation the caller has to declare.
+
+Two scales are offered because the plan names two quantities. A catch rate under Q averages the
+fitted probability; an adjusted log-odds deviation averages the linear predictor. They are not
+interchangeable: averaging a sigmoid over a population is not the sigmoid of the average, so a fixed
+partner changes a probability contrast even in a model that is additive on the log-odds scale.
+"""
+from __future__ import annotations
+
+from collections import Counter
+
+import numpy as np
+import polars as pl
+
+from .contracts import UNKNOWN
+
+AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
+FIELD_EDGES = (0.0, 20.0, 40.0, 60.0, 80.0, 100.0)
+DISTANCE_EDGES = (1.0, 4.0, 8.0, 15.0, 25.0)
+PASSING_CELLS = {"continuous": (("air_yards", AIR_YARDS_EDGES),),
+                 "categorical": ("down", "pass_location")}
+RUSHING_CELLS = {"continuous": (("yardline_100", FIELD_EDGES), ("ydstogo", DISTANCE_EDGES)),
+                 "categorical": ("down", "run_location", "run_gap")}
+DEFAULT_MIN_ROWS = 5
+SCALES = ("probability", "log_odds")
+
+
+def _label(value):
+    if value is None or (isinstance(value, float) and value != value):
+        return UNKNOWN
+    text = str(value).strip()
+    return text if text else UNKNOWN
+
+
+def _bucket(value, edges):
+    if value is None or (isinstance(value, float) and value != value):
+        return UNKNOWN
+    position = np.digitize(float(value), edges[1:-1])
+    return f"{edges[position]:g}-{edges[position + 1]:g}"
+
+
+def context_cells(table, *, continuous=(), categorical=()):
+    """One cell label per row: the pre-play context that a contrast is standardized over.
+
+    A cell is the combination of the named bands and labels, so two rows share a cell when they are
+    comparable situations. A missing value keeps its own `UNKNOWN` cell rather than being dropped,
+    because a model that had no context for a row still produced a prediction for it.
+    """
+    if not isinstance(table, pl.DataFrame):
+        raise TypeError(f"context_cells: expected a polars DataFrame, found {type(table).__name__}")
+    missing = [column for column, _ in continuous] + list(categorical)
+    absent = [column for column in missing if column not in table.columns]
+    if absent:
+        raise ValueError(f"context_cells: columns {absent} are not in the table")
+    parts = []
+    for column, edges in continuous:
+        parts.append([f"{column}={_bucket(value, edges)}" for value in table[column].to_list()])
+    for column in categorical:
+        parts.append([f"{column}={_label(value)}" for value in table[column].to_list()])
+    return ["|".join(row) for row in zip(*parts)]
+
+
+def cell_weights(labels):
+    """Share of rows in each cell, largest first."""
+    counted = {}
+    for label in labels:
+        counted[label] = counted.get(label, 0) + 1
+    total = len(labels)
+    return {label: count / total for label, count in
+            sorted(counted.items(), key=lambda item: (-item[1], item[0]))}
+
+
+def support_report(table, *, continuous=(), categorical=(), min_rows=DEFAULT_MIN_ROWS):
+    """How much of one population sits in cells that hold enough rows to lean on.
+
+    `thin_share` is the part of the population in cells below `min_rows`, which is where a contrast
+    is being read off a handful of plays.
+    """
+    labels = context_cells(table, continuous=continuous, categorical=categorical)
+    weights = cell_weights(labels)
+    rows = dict(Counter(labels))
+    thin = {label: weight for label, weight in weights.items() if rows[label] < min_rows}
+    return {
+        "rows": table.height,
+        "cells": len(weights),
+        "min_rows": min_rows,
+        "weights": weights,
+        "rows_per_cell": rows,
+        "thin_share": float(sum(thin.values())),
+        "thin_cells": len(thin),
+        "largest_cell_share": next(iter(weights.values())) if weights else None,
+    }
+
+
+def player_support(fitting_table, population, *, identity, player, continuous=(), categorical=(),
+                   min_rows=DEFAULT_MIN_ROWS):
+    """The share of a population a player's own rows cover, and the share they do not.
+
+    `extrapolated_share` is the part of Q the player never faced at all, so a contrast there is the
+    model speaking outside the player's support. Zero rows for the player means every cell is
+    extrapolated and no contrast should be reported for him.
+    """
+    for name, frame in (("fitting_table", fitting_table), ("population", population)):
+        if identity not in frame.columns:
+            raise ValueError(f"player_support: {identity} is not in the {name}")
+    rows = fitting_table.filter(pl.col(identity) == player)
+    if rows.height == 0:
+        raise ValueError(f"player_support: {player} has no rows in {identity}")
+    within = context_cells(rows, continuous=continuous, categorical=categorical)
+    weights = cell_weights(context_cells(population, continuous=continuous, categorical=categorical))
+    covered = {}
+    for label in within:
+        covered[label] = covered.get(label, 0) + 1
+    supported = sum(weight for label, weight in weights.items() if covered.get(label, 0) > 0)
+    well = sum(weight for label, weight in weights.items() if covered.get(label, 0) >= min_rows)
+    absent = sorted(label for label in weights if label not in covered)
+    return {
+        "identity": identity,
+        "player": player,
+        "rows": rows.height,
+        "cells_faced": len(covered),
+        "population_cells": len(weights),
+        "population_rows": population.height,
+        "min_rows": min_rows,
+        "supported_share": float(supported),
+        "well_supported_share": float(well),
+        "extrapolated_share": float(1.0 - supported),
+        "unsupported_cells": absent,
+    }
+
+
+def _forced(population, levels):
+    if not levels:
+        return population
+    present = [column for column in levels if column in population.columns]
+    absent = [column for column in levels if column not in population.columns]
+    if absent:
+        raise ValueError(f"standardized contrast: identity columns {absent} are not in the population")
+    return population.with_columns([pl.lit(levels[column]).alias(column) for column in present])
+
+
+def _arm_values(fitted, frame, scale):
+    """The fitted value of every population row, on the requested scale."""
+    if scale not in SCALES:
+        raise ValueError(f"unknown scale {scale!r}; expected one of {list(SCALES)}")
+    if scale == "probability":
+        return np.asarray(fitted.predict(frame), dtype=float)
+    if fitted.task != "completion":
+        raise ValueError("a log-odds arm needs a completion model; yards are already additive")
+    matrix = fitted.holdout_design(frame).matrix
+    return np.asarray(fitted.estimator.decision_function(matrix), dtype=float).ravel()
+
+
+def standardized_prediction(fitted, population, *, levels=None, fitting_table=None, continuous=(),
+                            categorical=(), min_rows=DEFAULT_MIN_ROWS, scale="probability"):
+    """Mean fitted outcome over a population, with any identity level forced onto every row.
+
+    `levels` fixes identity columns to one player or one reference level, which is what turns a
+    conditional model into a standardized prediction: the same Q for every arm of a contrast.
+
+    `scale="probability"` averages the fitted rate, which is the plan's catch-rate contrast.
+    `scale="log_odds"` averages the linear predictor, which is the plan's adjusted log-odds
+    deviation and is the scale on which an additive model stays additive: the mean log-odds of a
+    player under Q does not depend on which partner is fixed, while the mean probability does.
+    """
+    if population.height == 0:
+        raise ValueError("standardized_prediction: the population holds no rows")
+    frame = _forced(population, levels)
+    values = _arm_values(fitted, frame, scale)
+    report = {
+        "rows": population.height,
+        "scale": scale,
+        "prediction": float(values.mean()),
+        "spread": float(values.std()),
+        "levels": dict(levels or {}),
+        "unseen_identities": sorted(
+            f"{column}={level}" for column, level in (levels or {}).items()
+            if f"{column}={level}" not in fitted.design.columns),
+    }
+    if fitting_table is not None and levels and len(levels) == 1:
+        column, level = next(iter(levels.items()))
+        report["support"] = player_support(fitting_table, population, identity=column, player=level,
+                                           continuous=continuous, categorical=categorical,
+                                           min_rows=min_rows)
+    return report
+
+
+def standardized_contrast(fitted, population, *, identity, left, right, fixed=None,
+                          fitting_table=None, continuous=(), categorical=(),
+                          min_rows=DEFAULT_MIN_ROWS, scale="probability"):
+    """Difference between two players under one population, with the support behind each arm.
+
+    The difference is `left - right` on the requested scale. Pass `fixed` to hold the other
+    identities at reference levels, for example one passer for a receiver contrast. On the
+    probability scale a fixed partner changes the difference even in an additive model, because the
+    average of a sigmoid is not the sigmoid of an average; on the log-odds scale it does not. Either
+    way the fixed levels are part of the estimand and are reported back.
+    """
+    if identity not in population.columns:
+        raise ValueError(f"standardized_contrast: {identity} is not in the population")
+    base = dict(fixed or {})
+    if identity in base:
+        raise ValueError(f"standardized_contrast: {identity} is both fixed and varied")
+    arms = {side: standardized_prediction(fitted, population, levels={**base, identity: level},
+                                          fitting_table=fitting_table, continuous=continuous,
+                                          categorical=categorical, min_rows=min_rows, scale=scale)
+            for side, level in (("left", left), ("right", right))}
+    if fitting_table is not None:
+        for arm, level in (("left", left), ("right", right)):
+            arms[arm]["support"] = player_support(fitting_table, population, identity=identity,
+                                                  player=level, continuous=continuous,
+                                                  categorical=categorical, min_rows=min_rows)
+    return {
+        "identity": identity,
+        "left": left,
+        "right": right,
+        "fixed": base,
+        "scale": scale,
+        "left_prediction": arms["left"]["prediction"],
+        "right_prediction": arms["right"]["prediction"],
+        "difference": arms["left"]["prediction"] - arms["right"]["prediction"],
+        "population_rows": population.height,
+        "arms": arms,
+    }
+
+
+def contrast_sensitivity(fitter, population, *, identity, left, right, penalties, fixed=None,
+                         fitting_table=None, continuous=(), categorical=(),
+                         min_rows=DEFAULT_MIN_ROWS, scale="probability"):
+    """How far a contrast moves when the penalty moves, reported as a sensitivity range.
+
+    This is not a confidence interval and must not be read as one: it measures one modelling choice,
+    the penalty, and says nothing about sampling error or about a player's true effect. It is here
+    because a point estimate would otherwise be read as certain.
+    """
+    values = {}
+    for penalty in penalties:
+        contrast = standardized_contrast(fitter(penalty), population, identity=identity, left=left,
+                                         right=right, fixed=fixed, fitting_table=fitting_table,
+                                         continuous=continuous, categorical=categorical,
+                                         min_rows=min_rows, scale=scale)
+        values[float(penalty)] = contrast["difference"]
+    ordered = sorted(values.values())
+    return {
+        "identity": identity,
+        "left": left,
+        "right": right,
+        "scale": scale,
+        "penalties": values,
+        "minimum": ordered[0],
+        "maximum": ordered[-1],
+        "spread": ordered[-1] - ordered[0],
+        "penalties_tried": len(values),
+        "note": "penalty sensitivity range, not a confidence interval",
+    }

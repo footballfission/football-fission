@@ -316,3 +316,31 @@ it does.
 
 The penalties are reported in the fit's `block_penalties` and are never turned into a probability, a
 share of credit, or a ranking. A variance component lives on the scale it was estimated on.
+
+## Standardized contrasts and their support
+
+A conditional model answers a question about the contexts a player actually saw. A contrast asks about
+one shared population Q, and the plan asks for the observed-support mix rather than a synthetic grid.
+The population is therefore a slice of a canonical table: that is what the design builder can score, and
+it keeps the contrast inside contexts the league actually produced.
+
+Overlap is reported, not assumed. Cell labels turn "is this player supported over Q?" into numbers: the
+share of Q his own rows cover, the share they cover well, and the share he never faced. A contrast whose
+extrapolated share is large is the model speaking outside the data, and the report says so before the
+number is read. A player with no fitted column gets no term - his arm is the average identified player,
+and `unseen_identities` names him so the arm is not mistaken for a coefficient.
+
+Two scales, one estimand each. The plan asks for both a catch rate and an adjusted log-odds deviation,
+and the two disagree in a way worth stating: the mean probability under Q depends on which partner is
+fixed even in an additive model, because the average of a sigmoid is not the sigmoid of an average, while
+the mean linear predictor does not. A reader comparing two receivers while free to choose the passer is
+making a different statement from one who holds the passer fixed, and both reports carry the fixed levels.
+
+No interval is attached to a contrast. The panel bootstrap in `evaluation` measures a model's loss over a
+season, not the uncertainty of a player term, and resampling the population would measure the spread of
+contexts rather than the uncertainty of the estimate. What is offered instead is a penalty sensitivity
+range, labelled as such, which is honest about being a study of one modelling choice.
+
+Nothing here is causal. Holding the context fixed removes the observed context difference between two
+players. Coach, coverage, route assignment, health, and game script are not in the model and are not
+removed by it, and a player swap is never described as an intervention.
