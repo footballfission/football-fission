@@ -286,3 +286,12 @@ percentile bootstrap over very few clusters is narrow: a handful of distinct res
 the sampling spread of a handful of games.
 
 Run the focused checks with `python -m unittest tests.test_inference_evaluation -q`.
+
+## Baseline fit audit
+
+`docs/INFERENCE_BASELINE_AUDIT.md` records the observed metrics and the paired game-clustered
+intervals from the first baseline fit on the cached canonical tables. Its headline finding is negative
+and useful: on the 2024 and 2025 splits the passer-receiver identity block does not improve held-out
+completion loss, and the support environment and the runner block cost mean absolute error rather than
+saving it. It is evidence from one local run over the partitions it names by hash, not a test
+expectation.
