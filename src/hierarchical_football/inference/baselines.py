@@ -18,7 +18,7 @@ declares the chronological split and reports the comparison.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import polars as pl
@@ -261,13 +261,13 @@ def rushing_design(table, *, identities=(), composites=None, support=False, refe
                         reference=reference, name="rushing")
 
 
-def _penalty_value(penalty):
+def penalty_value(penalty):
     if not penalty > 0:
         raise ValueError(f"penalty must be positive, found {penalty}")
     return float(penalty)
 
 
-def _name(prefix, identities, design):
+def baseline_name(prefix, identities, design):
     parts = ["context", *design.composites]
     if identities:
         parts.append("identity(" + ",".join(identities) + ")")
@@ -291,6 +291,7 @@ class FittedBaseline:
     estimator: object
     design: Design
     in_sample: dict
+    block_penalties: dict = field(default_factory=dict)
 
     def holdout_design(self, table):
         """Design for a later frame, on the fitted columns and reference statistics."""
@@ -349,6 +350,7 @@ class FittedBaseline:
             "rows": self.rows,
             "features": len(self.design.columns),
             "penalty": self.penalty,
+            "block_penalties": dict(self.block_penalties),
             "in_sample": dict(self.in_sample),
             "identity_levels": {column: len(entry["levels"])
                                 for column, entry in self.design.identities.items()},
@@ -375,7 +377,7 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
     `penalty` is the inverse of the L2 strength, because the solver's `C` is `1 / penalty`: a larger
     penalty shrinks every term harder.
     """
-    penalty = _penalty_value(penalty)
+    penalty = penalty_value(penalty)
     design = passing_design(table, identities=identities, composites=composites)
     target = table["complete_pass"].cast(pl.Float64, strict=False).to_numpy().astype(float)
     if len(np.unique(target)) < 2:
@@ -390,7 +392,7 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
         "log_loss": float(log_loss(target, probability, labels=[0, 1])),
         "brier": float(brier_score_loss(target, probability)),
     }
-    return FittedBaseline(name=_name("passing", identities, design), task="completion",
+    return FittedBaseline(name=baseline_name("passing", identities, design), task="completion",
                           target="complete_pass", contract=PASSING_CONTRACT.name, penalty=penalty,
                           rows=table.height, estimator=estimator, design=design, in_sample=in_sample)
 
@@ -404,7 +406,7 @@ def fit_rushing(table, *, identities=(), composites=None, support=False, penalty
     `identities=("rusher_id",)` for the runner baseline and `identities=("rusher_id", "qb_id")`
     only where the quarterback on the field is attributed reliably.
     """
-    penalty = _penalty_value(penalty)
+    penalty = penalty_value(penalty)
     design = rushing_design(table, identities=identities, composites=composites, support=support)
     target = _numeric(table, "rushing_yards")
     estimator = Ridge(alpha=penalty)
@@ -412,6 +414,6 @@ def fit_rushing(table, *, identities=(), composites=None, support=False, penalty
     residual = target - estimator.predict(design.matrix)
     in_sample = {"mae": float(np.mean(np.abs(residual))),
                  "rmse": float(np.sqrt(np.mean(residual ** 2)))}
-    return FittedBaseline(name=_name("rushing", identities, design), task="yards",
+    return FittedBaseline(name=baseline_name("rushing", identities, design), task="yards",
                           target="rushing_yards", contract=RUSHING_CONTRACT.name, penalty=penalty,
                           rows=table.height, estimator=estimator, design=design, in_sample=in_sample)

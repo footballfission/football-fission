@@ -293,3 +293,26 @@ a handful of distinct resamples cannot reproduce the sampling spread of a handfu
 count is therefore reported with every interval. And these intervals cover the difference in a row-level
 loss over a season, not the uncertainty of an individual player's term, which belongs to the posterior
 layer the plan schedules after the baselines.
+
+## Per-block penalties for the identity effects
+
+One penalty over the whole coefficient vector makes two different modelling choices into one: how much
+to shrink 800 player columns, and how much to shrink target depth and field position. The first needs a
+strong prior to stay stable out of season; the second needs almost none, because those columns are the
+pre-play context the model exists to condition on. `partial_pooling` splits the penalty by block, which
+is the ridge form of a random-effect prior on players.
+
+The split is implemented by rescaling the identity columns and folding the scale back into their fitted
+coefficients. The fit stays an ordinary scikit-learn solve, the fitted object stays an ordinary
+`FittedBaseline`, and every downstream function - prediction, `identity_terms`, the clustered comparison -
+keeps working. Equal block penalties reproduce the ordinary fit exactly, which the tests check rather
+than assume.
+
+The player penalty is chosen on an inner chronological split: earlier seasons fit, the next season
+scores, every grid point is measured the same way, and ties go to the larger penalty. A prior chosen on
+the season that is later reported would make the choice part of the result. The whole grid is returned
+rather than the winner alone, because a flat grid says the choice does not matter and a peaked one says
+it does.
+
+The penalties are reported in the fit's `block_penalties` and are never turned into a probability, a
+share of credit, or a ranking. A variance component lives on the scale it was estimated on.

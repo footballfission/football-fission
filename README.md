@@ -295,3 +295,29 @@ and useful: on the 2024 and 2025 splits the passer-receiver identity block does 
 completion loss, and the support environment and the runner block cost mean absolute error rather than
 saving it. It is evidence from one local run over the partitions it names by hash, not a test
 expectation.
+
+## Partial pooling for identified players
+
+`hierarchical_football.inference.partial_pooling` gives the identity block its own penalty. In the
+plain baselines one penalty covers every coefficient, so a prior strong enough to control 800 player
+columns also flattens target depth and field position, which are the columns the model is supposed to
+believe. `fit_pooled_completion(..., identity_penalty=..., context_penalty=...)` and
+`fit_pooled_rushing(..., identity_penalty=..., context_penalty=...)` return the ordinary
+`FittedBaseline`, so prediction, `identity_terms`, and the evaluation module work unchanged.
+
+The implementation is a rescaling rather than a new solver. The identity columns are multiplied by
+`sqrt(context_penalty / identity_penalty)` before the fit, and their fitted coefficients are multiplied
+by the same factor afterwards. The linear predictor is unchanged, so the fitted object keeps the
+ordinary design and the ordinary predict path, and equal block penalties reproduce the ordinary fit
+exactly - which the tests assert rather than assume.
+
+`select_identity_penalty(table, *, identities, task, train_seasons, validation_season, ...)` chooses the
+player penalty on an inner chronological split: every grid point is scored on the same later season by
+the primary metric, and ties go to the larger penalty so an uninformative grid lands on more shrinkage.
+`scores` keeps every grid value, because a flat grid and a peaked one are different evidence. The season
+that is later reported is never the season the penalty is chosen on.
+
+A penalty here is a variance component, not a probability of skill. The fit records both penalties and
+the column scale in `report()["block_penalties"]`.
+
+Run the focused checks with `python -m unittest tests.test_inference_partial_pooling -q`.
