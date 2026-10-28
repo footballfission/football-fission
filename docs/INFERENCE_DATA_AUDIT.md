@@ -64,9 +64,10 @@ The source has 197,362 cached plays per table because both tables read the same 
 Every removal is accounted for by a named reason, and no source row was dropped for an unreported
 cause: `target_rows` plus the exclusions equals `source_rows` in both reports.
 
-The 5,231 carried-outside-scope plays are the quarterback, receiver, and untagged carries the
-default backfield scope leaves out. They are the material for the `non_qb` and `all` sensitivity
-cases, not an error.
+The 5,231 carried-outside-scope plays are what the default backfield scope leaves out: 3,187
+quarterback carries, 1,731 receiver carries, 268 tight-end carries, and 45 carries by a player the
+roster feed does not identify. They are the material for the `non_qb` and `all` sensitivity cases, not an
+error, and the tight ends are why `non_qb` keeps rows that `backfield` does not.
 
 ## Coverage inside the kept rows
 
@@ -86,8 +87,12 @@ Two findings matter for later stages:
   carries as if the gap were known; it has to keep `UNKNOWN` as its own group or restrict the
   sample and say so.
 
-`pass_location` is recorded for all but one pass, but it is the *charted* side of the pass, so it
-stays out of a completion model as a pre-play predictor.
+`pass_location` is recorded for all but one pass, and it is the *charted* side of the pass rather than a
+pre-play fact: it says where the ball went, not what the defense showed before the snap. The baselines
+admit it, because the plan's context list names the direction of the pass, and this is the one column in
+that context that is recorded at the throw rather than before it. What no model admits is anything
+derived from the outcome itself - the completion, the yards after the catch, catchability, a drop, or a
+contested catch.
 
 ## Pairing support in `passing_targets`
 
@@ -100,7 +105,7 @@ stays out of a completion model as a pre-play predictor.
 | Receivers with exactly one quarterback | 221 |
 | Quarterbacks with exactly one receiver | 53 |
 | Connected components of the pairing graph | 8 |
-| Largest component | 977 players, 184 quarterbacks, 867 receivers, 68,400 rows (99.99% of rows) |
+| Largest component | 977 players, 184 quarterbacks, 867 receivers, 68,400 rows (99.99% of rows); 74 of the nodes appear as both, since 184 + 867 - 977 = 74 |
 | Components with a single pairing | 6 |
 
 The pairing graph is effectively connected: one component holds 99.99% of the targets, so a

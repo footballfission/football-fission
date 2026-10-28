@@ -148,9 +148,12 @@ one; and the share of rows whose own log loss is 2 or more rose from 0.32% to 0.
 0.46% to 0.50% in 2025 when the block was added. The average improves while the worst rows get slightly
 worse, which is why `evaluation.completion_metrics` now reports that tail share beside the mean.
 
-Unseen players are common enough to matter: 13.5% of 2024 targets have a passer or receiver the training
-seasons never saw, and 11.4% of 2024 carries and 18.6% of 2025 carries have an unseen runner. Those rows
-fall back to the context, and they put a ceiling on what any identity block can do between seasons.
+Unseen players are common enough to matter, and the two windows differ. Training on 2022-2023 and
+scoring 2024: 13.5% of targets have a passer the training seasons never saw, 13.3% have an unseen
+receiver, 24.8% have one or the other, and 11.4% of carries have an unseen runner. Training on 2022-2024
+and scoring 2025: 13.8%, 14.4%, 24.9%, and 18.6% of carries. A row with an unseen player falls back to
+the context, so a quarter of the scored plays put a ceiling on what any identity block can do between
+seasons whatever the prior.
 
 ## What this evidence supports
 
@@ -231,5 +234,5 @@ for holdout_season, train_seasons in ((2024, [2022, 2023]), (2025, [2022, 2023, 
 
 The shared-penalty cross-check follows the same shape with `fit_completion(..., identities=..., penalty=30.0)`,
 and the running-block table with `fit_pooled_rushing(..., support=True)`. The drivers behind the recorded
-numbers were scratch scripts in the directory this checkout keeps out of the index (the scratch rule in
-`.gitignore`); every model, metric, interval, and selection rule they used is in the committed modules.
+numbers were scratch scripts kept outside the index by a local ignore rule; every model, metric,
+interval, and selection rule they used is in the committed modules.

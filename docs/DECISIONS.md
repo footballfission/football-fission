@@ -3,6 +3,30 @@
 Records the policies this package commits to, and the limits of each. It is not
 a changelog: each section describes why the current behavior is what it is.
 
+## Contents
+
+- [Tracked and generated paths](#tracked-and-generated-paths)
+- [Ingest report history](#ingest-report-history)
+- [Roster extension](#roster-extension)
+- [Prediction bundle metadata](#prediction-bundle-metadata)
+- [Inference table contracts](#inference-table-contracts)
+- [Passing target selection](#passing-target-selection)
+- [Rushing attempt selection](#rushing-attempt-selection)
+- [Pairing support reporting](#pairing-support-reporting)
+- [Inference build inputs and manifest](#inference-build-inputs-and-manifest)
+- [Extractor command surface](#extractor-command-surface)
+- [First-stage extractor script](#first-stage-extractor-script)
+- [Baseline estimator design](#baseline-estimator-design)
+- [Holdout evaluation and clustered intervals](#holdout-evaluation-and-clustered-intervals)
+- [Per-block penalties for the identity effects](#per-block-penalties-for-the-identity-effects)
+- [Standardized contrasts and their support](#standardized-contrasts-and-their-support)
+- [Reporting a fit that stopped at its iteration cap](#reporting-a-fit-that-stopped-at-its-iteration-cap)
+- [A declared rusher scope is not a promise of carries](#a-declared-rusher-scope-is-not-a-promise-of-carries)
+- [Summing a group of gains without borrowing or reading past the array](#summing-a-group-of-gains-without-borrowing-or-reading-past-the-array)
+- [Giving a weak penalty enough iterations to converge](#giving-a-weak-penalty-enough-iterations-to-converge)
+- [One word per concept across the inference layer](#one-word-per-concept-across-the-inference-layer)
+- [The charted pass location is the one context column recorded at the throw](#the-charted-pass-location-is-the-one-context-column-recorded-at-the-throw)
+
 ## Tracked and generated paths
 
 Generated datasets, run manifests, and scratch notes are never tracked. The
@@ -356,7 +380,7 @@ identity designs hit the cap of 1000 iterations. The module now reports the iter
 The fit is returned rather than refused, because a caller searching a penalty grid needs the weak end of
 the grid to be measurable, and because the fact is what matters: a coefficient that is not at the optimum
 is still useful evidence, as long as the reader knows. A closed-form solver reports `converged` true with
-no iteration count, which is why the flag is a triple and not a boolean.
+no iteration count, which is why the flag is a pair and not a boolean.
 
 ## A declared rusher scope is not a promise of carries
 
@@ -388,3 +412,57 @@ same checks against all four. The production paths mask their groups to a positi
 That test module is also the first check in the suite that imports the model layer at all. The data and
 inference layers have per-module tests; the position chains are covered only through this helper, which
 is a gap rather than a design.
+
+## Giving a weak penalty enough iterations to converge
+
+The logistic solver was capped at 1000 iterations, and the identity designs at the weak end of the
+selection grid needed more: on the 2022 passing table a penalty of 0.03 converges after 2021 iterations
+and a penalty of 0.1 after 1163, so four fits in the first penalty study stopped at the cap and reported a
+point that was not the optimum. The cap is now 5000, and every fit reports its iteration count and whether
+it reached its own stopping rule.
+
+The cost is stated rather than hidden: the weakest grid point takes about a minute instead of half of one.
+The alternative is a number that looks like an optimum because a counter reached a limit. Raising the cap
+cannot move a fit that already converged, so the outer comparisons recorded in the audit documents stand;
+the weak-penalty rows of the 2023 selection grid in `docs/INFERENCE_MODEL_DEVELOPMENT.md` were re-measured
+and are marked there.
+
+## One word per concept across the inference layer
+
+Two names for one thing and one name for two things cost a reader more than they cost the code. Four
+words were doing both, and each now means one thing everywhere in the package, in the result keys, and in
+the tests.
+
+- `holdout` is the later season that is scored. `chronological_split` and `select_identity_penalty` both
+  say `holdout_season` and both report `{"train", "holdout"}`; the selection calls it a holdout too,
+  because that is what it is, even though nothing downstream is chosen with it.
+- `reference` is the earlier design whose means and level sets a later frame is scored on. The model every
+  other model is measured against in a comparison is `reference_model`, so `clustered_comparison` no
+  longer reuses the word for a second job.
+- `identity_mask` is a boolean mask over design columns, which is what the per-block penalty scales;
+  `identities` stays the tuple of column names a caller names.
+- `label` is one declared value of a categorical column, in `contracts`. The scalar helper lives beside
+  `UNKNOWN` and is imported by the modules that need it, and the Polars expression in `prepare` is
+  `_declared_label`, because it returns an expression over a column rather than one label.
+- `require_task` decides what metric family a loss is measured in, so the vocabulary lives in one place
+  and the same message is not written twice.
+
+`player` remains the word for the label of an identity column inside `identity_terms`, because that entry
+is about a person rather than about a level of a column; the docstring says so. The change is a naming
+policy, not a behaviour change: every recorded number in `docs/` was produced by the same arithmetic
+before and after it.
+
+## The charted pass location is the one context column recorded at the throw
+
+`pass_location` is charted rather than pre-play: it says where the ball went, not what the defense showed
+before the snap. It is admitted to the completion baselines because the plan's context list names the
+direction of the pass beside target depth, field position, distance, and down, and because a conversion
+model without it would be conditioning on less than the plan declares. What is not admitted is anything
+the outcome itself produces: the completion, yards after the catch, catchability, a drop, or a contested
+catch.
+
+The distinction matters for how a fitted term is read: a passer's term is an association conditional on
+where he threw the ball, so it is a smaller question than "how well did he throw" and a larger one than
+"how well did he choose". `docs/INFERENCE_DATA_AUDIT.md` and the layer guide state the same thing, and all
+three say it in the same words now: an earlier draft of the data audit claimed the column stays out of the
+model, which the code, the guide, and this record contradict.

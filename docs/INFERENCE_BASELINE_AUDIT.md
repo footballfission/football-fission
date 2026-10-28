@@ -125,7 +125,7 @@ Paired difference against `context`:
 
 The reliability table says where the completion model disagrees with the season it is scoring. In 2024
 the context baseline reads the 0.6-0.7 bin well and the 0.7-0.8 bin low (0.751 predicted against 0.793
-observed on 6,139 targets), it over-predicts the 0.1-0.2 bin (0.164 against 0.242 on 149 targets), and
+observed on 6,139 targets), it under-predicts the 0.1-0.2 bin (0.164 against 0.242 on 149 targets), and
 its extreme bins are thin: 3 rows above 0.9 and 3 below 0.1. Adding identity widens the top bin to 153
 rows and mis-reads it (0.914 predicted against 0.791 observed), which is one visible shape of the extra
 loss the interval reports.
