@@ -27,6 +27,7 @@ a changelog: each section describes why the current behavior is what it is.
 - [Team-game panels: candidates, the OTHER residual, and a label-free index](#team-game-panels-candidates-the-other-residual-and-a-label-free-index)
 - [Chronological splits by week, and what a prediction bundle may carry](#chronological-splits-by-week-and-what-a-prediction-bundle-may-carry)
 - [Team volume baselines: a pooled count law and a team-history reference](#team-volume-baselines-a-pooled-count-law-and-a-team-history-reference)
+- [Team volume with a team effect, and the penalty that shrinks it](#team-volume-with-a-team-effect-and-the-penalty-that-shrinks-it)
 - [One word per concept across the inference layer](#one-word-per-concept-across-the-inference-layer)
 - [The charted pass location is the one context column recorded at the throw](#the-charted-pass-location-is-the-one-context-column-recorded-at-the-throw)
 
@@ -519,6 +520,39 @@ separate a good offense from a lucky one; the dispersion is shared across teams;
 the training weeks and never updates inside the predicted weeks, so it cannot follow a mid-season change;
 the intervals are central intervals rather than a PIT curve; and a single cutoff is not walk-forward
 evaluation. Each of those is the hierarchical model's job, and each has to be measured on the same rows.
+
+## Team volume with a team effect, and the penalty that shrinks it
+
+The plan's Model A gives each team a deviation from the league mean, partially pooled, with one shared
+count dispersion. `inference.team_effect` fits that model by penalized maximum likelihood: a negative
+binomial whose log mean is an intercept plus one deviation per team, with a ridge penalty on the
+deviations. It is the frequentist cousin of the plan's Bayesian hierarchy, not its posterior, and every
+number it reports is a point estimate.
+
+The penalty is a variance component, so it must not be chosen on the rows the model is scored on. The
+selector takes an inner cutoff inside the training history, fits on the weeks at or before it, scores the
+weeks after it with the count log score, and returns the whole table so the margin is visible. The grid
+starts at zero shrinkage, which makes "no team effect" a candidate answer rather than a grid edge, and
+ends at 10,000, which is far enough out that a boundary answer means the search needs another order of
+magnitude. The reported model is refitted on all the training weeks at the penalty the inner split chose.
+
+Measured on the cached seasons. Training through the end of 2023 and predicting 2024: the inner split
+chooses a penalty of 100, the effect deviations have a standard deviation of 0.078 on the log scale, and
+the model scores CRPS 4.42 and MAE 6.28 against CRPS 4.30 and MAE 6.10 for the pooled law, so it loses by
+0.12. Training through the end of 2024 and predicting 2025: the split chooses 1,000, the deviations shrink
+to 0.025, and the model scores CRPS 4.27 and MAE 6.11 against 4.29 and 6.12, so it wins by 0.02. Its 90%
+coverage is 0.88 in the first season and 0.92 in the second.
+
+The verdict this record takes is that the team effect is not yet worth promoting. It is small, it changes
+sign between the two cuts, and the model asks for tighter shrinkage the more history it has, which is the
+signature of effects that are barely there. A more complicated model is allowed to lose; it is not allowed
+to lose quietly, which is why the losses are in this record and in the guide.
+
+What the model does not carry: no opponent effect, no season trend, and no team-by-season interaction,
+which the plan introduces one at a time and only when the simpler model miscalibrates; the deviations are
+a single number per franchise, so a team that changes coach or quarterback mid-sample is one deviation; the
+dispersion is shared across teams; the dispersion search is bounded rather than given a prior; and a single
+cutoff is not walk-forward evaluation.
 
 ## One word per concept across the inference layer
 

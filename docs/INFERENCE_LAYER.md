@@ -20,6 +20,7 @@ which checks hold it.
 - [Team-game receiving panels](#team-game-receiving-panels)
 - [Chronological team-game splits](#chronological-team-game-splits)
 - [Team volume baselines](#team-volume-baselines)
+- [Team-effect volume model](#team-effect-volume-model)
 - [Baseline estimators](#baseline-estimators)
 - [Baseline evaluation](#baseline-evaluation)
 - [Partial pooling for identified players](#partial-pooling-for-identified-players)
@@ -65,6 +66,7 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `panels.py` | Team-game target totals, available candidates, and the `OTHER` residual | `tests.test_inference_panels` |
 | `splits.py` | The week cutoff that separates training team games from the weeks a model predicts | `tests.test_inference_splits` |
 | `volume.py` | A pooled count law and a team-history reference for team target volume | `tests.test_inference_volume` |
+| `team_effect.py` | A per-team deviation on the log mean, shrunk by a penalty chosen on an inner split | `tests.test_inference_team_effect` |
 | `__main__.py` | The `prepare` command over the local cache | `tests.test_inference_cli` |
 
 Every module is offline. They read the cache under `data/raw`, write under the output root they are
@@ -251,6 +253,33 @@ seasons, which is the bar a hierarchical volume model has to clear rather than a
 
 Run the focused checks with `python -m unittest tests.test_inference_volume -q`.
 
+## Team-effect volume model
+
+`hierarchical_football.inference.team_effect` adds the plan's first real hierarchy: a negative binomial
+whose log mean is a league intercept plus one deviation per team, with a ridge penalty on the deviations.
+`fit_team_effect(panel, *, penalty)` returns the intercept, the deviations, the dispersion, the team order,
+and whether the inner fit converged. `team_effect_means(fit, panel)` gives a mean per row and lets a team
+the model has never seen fall back to the intercept. `count_log_score(means, dispersion, observed)` is the
+proper score used for selection, so a penalty can be chosen without Monte Carlo noise.
+
+`select_penalty(train_panel, *, penalties, inner_through)` fits on the training weeks at or before an inner
+cutoff, scores the weeks after it, and returns the winning penalty with the whole table. The penalty is
+never chosen on the rows the model is then scored on. `team_effect_comparison(train_panel, predict_panel,
+observed_panel, *, inner_through, ...)` selects the penalty, refits on all the training weeks, and scores
+the model beside the pooled law and the team-history reference on the same predicted team games. The
+default grid runs from no shrinkage to 10,000, so an answer at the edge means the search needs another
+order of magnitude rather than another grid.
+
+Measured on the cached seasons, and the honest reading is a wash. Cutting at the end of 2023 and
+predicting 2024, the inner split chooses a penalty of 100; the effect deviations have a standard deviation
+of 0.078 and the model scores CRPS 4.42 against 4.30 for the pooled law, so it loses. Cutting at the end of
+2024 and predicting 2025, the split chooses 1,000, the deviations shrink to 0.025, and the model scores
+CRPS 4.27 against 4.29, so it wins by 0.02. The model asks for less team structure the more history it has,
+which is what weak and unstable team effects look like rather than a hierarchy that needs a posterior to
+show itself.
+
+Run the focused checks with `python -m unittest tests.test_inference_team_effect -q`.
+
 ## Baseline estimators
 
 `hierarchical_football.inference.baselines` fits the nested regularized baselines the research plan
@@ -408,10 +437,12 @@ refresh of the cache can move the numbers.
 - No charting join: catchability, drops, contested catches, pressure, and defensive box count are not
   attached, and their per-season coverage is unmeasured.
 - No participation join, and no reconciliation of derived game and team counts against a weekly table.
-- No posterior layer: player terms are regularized point estimates with a penalty sensitivity range, not
-  intervals, and the layer never turns a term into a ranking. The team-game panel that the opportunity
-  models need is built and checked for conservation, and the pooled and team-history volume baselines are
-  fitted and scored on it, but no hierarchical volume model and no allocation model is fitted yet.
+- No PyMC posterior: the team-effect volume model is a penalized maximum-likelihood fit, which is the
+  frequentist cousin of the plan's hierarchy rather than its posterior, and player terms are regularized
+  point estimates with a penalty sensitivity range rather than intervals, and the layer never turns a term into a ranking. The team-game panel that the opportunity
+  models need is built and checked for conservation, and the pooled, team-history, and team-effect volume
+  models are fitted and scored on it, but no allocation model is fitted yet and the team effect is not
+  promoted: it loses one season and wins the next by a twentieth of a CRPS point.
 - No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency, so the
   pooling and contrast stages are library functions with no entry point in the tree. The records in
   `docs/` reached them from scratch drivers, and `tests/test_inference_partial_pooling.py` and

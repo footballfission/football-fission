@@ -39,6 +39,16 @@ def _cutoff(train_through):
     return int(season), int(week)
 
 
+def at_or_before(panel, train_through):
+    """The mask of team games at or before a `(season, week)` cutoff.
+
+    The ordering rule lives here once, so a caller that needs the same cutoff without the three bundles
+    cannot drift from the split's definition of "before".
+    """
+    season, week = _cutoff(train_through)
+    return (pl.col("season") < season) | ((pl.col("season") == season) & (pl.col("week") <= week))
+
+
 def _weeks(frame):
     """The distinct weeks a frame covers, oldest first."""
     pairs = frame.select("season", "week").unique().sort("season", "week")
@@ -65,8 +75,7 @@ def team_game_split(panel, candidates_frame, *, train_through):
     require_unique(panel, TEAM_GAME_KEYS, "team games")
     require_unique(candidates_frame, CANDIDATE_KEYS, "candidates")
     season, week = _cutoff(train_through)
-
-    older = (pl.col("season") < season) | ((pl.col("season") == season) & (pl.col("week") <= week))
+    older = at_or_before(panel, train_through)
     train = panel.filter(older)
     predict = panel.filter(older.not_())
     if train.height == 0:
