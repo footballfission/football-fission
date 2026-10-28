@@ -212,3 +212,48 @@ Run the focused checks with `python -m unittest tests.test_prepare_script -q`.
 `docs/INFERENCE_DATA_AUDIT.md` records the observed counts from the first four-season extraction: kept rows by season, every exclusion reason with its count, missing-value coverage, and the connected components of the passer-receiver pairing graph. It is evidence from one local run over the cached partitions it names by hash, not a test expectation or a model result.
 
 Run the focused checks with `python -m unittest tests.test_inference_build -q`.
+
+## Baseline estimators
+
+`hierarchical_football.inference.baselines` fits the nested regularized baselines the research plan
+declares, one pair per canonical table: context alone, then context plus identified players. Nothing
+is split, sampled, or selected here. The caller declares the training seasons and the later season to
+score, and the two baselines are fitted the same way on the same rows so that the difference between
+them is the identity increment rather than an artifact of two unrelated models.
+
+`fit_completion(table, *, identities=(), composites=None, penalty=1.0)` fits a logistic baseline for
+`complete_pass`. The context is the pre-play context the contract declares - target depth, field
+position, distance to go, down, and charted pass location - and
+`fit_completion(table, identities=("qb_id", "receiver_id"))` adds one L2-penalized one-hot block per
+identified passer and receiver. No completion-derived field is admitted, so a fitted probability is a
+conversion rate under a context, not receiver talent: a receiver who earns targets and converts them
+at the same rate as his peers is invisible to this model by construction.
+
+`fit_rushing(table, *, identities=(), support=False, composites=None, penalty=1.0)` fits a ridge
+baseline for signed `rushing_yards`. `support=True` adds the `team | run_location | run_gap`
+composition as one column, which is the plan's support environment, and `identities=("rusher_id",)`
+adds the runner. That support column is a team, a scheme, a blocking unit, and an opponent at once,
+which is why it is named an environment and never a blocker grade. A squared penalty on a skewed
+outcome is a first mean model; the plan leaves robust, mixture, and quantile models open.
+
+`passing_design` and `rushing_design` build the design matrix on their own, and passing an earlier
+design as `reference=` reuses its columns, its standardization, and its level sets on a later frame. A
+category the reference never saw contributes a zero row and is counted in
+`design.notes["unseen_categorical_rows"]`; a null continuous value is filled with the reference median
+and counted in `notes["filled_continuous"]`, with its own indicator column when the reference frame
+had nulls at all. A player the reference never saw gets no column and is counted in
+`notes["unseen_identity_rows"]`, so a later season never invents a coefficient for a newcomer.
+
+`FittedBaseline.identity_terms()` returns one entry per identified player: the fitted term, the rows
+behind it, its share of the table, and `nested`, which is `True` when the player only ever appeared
+inside one level of the first composite column and cannot therefore be separated from that
+environment. Entries are ordered by identity column and player name, never by term size, because an
+order by size would read as a ranking of players. The L2 penalty centres the terms of one block on
+zero, so a term is a deviation from the average identified player, and a player with thin evidence is
+pulled back toward that average instead of being handed a rate of his own.
+
+`report()` returns the fit facts: rows, features, the penalty, the level counts, and `in_sample`
+error. The in-sample error is named that way on purpose. It is there to catch a broken fit, and a
+model with a column per player fits the rows it memorised by construction.
+
+Run the focused checks with `python -m unittest tests.test_inference_baselines -q`.

@@ -215,3 +215,48 @@ the documented options and calls `build`.
 It does not vendor the preparation code, so it needs the package installed in the environment it
 runs in. If the two entry points ever disagree, the package command is the one to trust and the
 script is the one to fix.
+
+## Baseline estimator design
+
+The two baselines per table are nested by construction, not by convention. Context alone and context
+plus identified players share one design builder, one standardization, one set of level sets, and one
+penalty schedule, so the error difference between them is the identity increment the research plan
+asks for. Two models built separately would differ in more than the question.
+
+The context is only pre-play. Target depth, field position, distance to go, down, and charted pass
+location are all known before the throw, while a completion-derived column is partly the outcome the
+model is meant to explain. The same reasoning keeps defensive box count out of the rushing context at
+this stage, because the plan treats it as a likely mediator of the carry rather than as a setting.
+
+An identity is a penalized one-hot block, and the penalty is what keeps a passer with 40 attempts and
+a receiver with 4 targets from producing the extremes of an unpenalized fit. The cost is stated, not
+hidden: L2 centres the terms of one block on zero, so a term is a deviation from the average
+identified player, and its size follows the outcome rate inside a player's own rows as much as the
+number of them. Measured on a two-player fixture, the two terms come out symmetric at the same
+magnitude however lopsided the exposure is, which is why the term list is ordered by name, never by
+size, and why `nested` sits next to every term.
+
+The logistic tolerance is 1e-8 rather than the solver's default. The gap between an identity block and
+the unpenalized intercept is flat in the loss, and the default tolerance stops along it: on a
+three-passer fixture the default left the block sum at -0.046 and the intercept at -0.049, while the
+tight solve reached a block sum of 1e-6 and the intercept its actual value. A term offset by an
+arbitrary constant would be reported as an effect.
+
+A player the training season never saw gets no column. A term for a player with no training rows is
+not a coefficient but a zero row, and the design counts the rows that took it. The same rule covers a
+category the reference never saw, except that those columns exist and contribute a zero row, while a
+null continuous value is filled with the reference median and carries its own indicator column when
+the reference frame had nulls at all. Filling with the holdout's own median would leak the later
+season's distribution into a model fitted on an earlier one.
+
+The support environment is a composition, not a talent. `support=True` folds team, location, and gap
+into one column, and a runner who only ever carried behind one of those combinations is marked
+`nested` because the term and the environment cannot be told apart. Baseline 1 is that column and
+Baseline 2 is the runner block on top of it, so they are separate switches: a caller can report the
+environment model without the runner model and see what each one adds.
+
+The module computes no holdout metric, no interval, and no cross-validated choice. A baseline that
+picked its own penalty in-sample would report the choice as evidence, and the chronological split
+belongs to the evaluation protocol, where the clustered resampling lives too. `report()` carries
+`in_sample` error for one purpose: to catch a fit that did not converge. A model with a column per
+player fits its own rows by construction and that number is never evidence about identity.
