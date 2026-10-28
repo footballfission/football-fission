@@ -15,7 +15,7 @@ Only the hierarchical model family is implemented here. Mention of a benchmark i
 
 ## Reports
 
-- [CENTRAL_RESULTS.md](CENTRAL_RESULTS.md): WR comparison on 2024?2025 week-ahead folds, including stat forecasts, fantasy points, and ceiling/floor events.
+- [CENTRAL_RESULTS.md](CENTRAL_RESULTS.md): WR comparison on 2024–2025 week-ahead folds, including stat forecasts, fantasy points, and ceiling/floor events.
 - [HIERARCHICAL_VARIANTS.md](HIERARCHICAL_VARIANTS.md): separate WR follow-up runs examining frozen shapes and joint touchdown sampling.
 - [CROSS_POSITION_RESULTS.md](CROSS_POSITION_RESULTS.md): extensions across positions, including their different calibration weaknesses.
 
@@ -31,4 +31,4 @@ Coverage measures how often observations fall in nominal predictive intervals; w
 
 Population averages can hide poor replacement-player or injury-scenario behavior. The hierarchy's small average accuracy gap does not establish that its injury response works. The [team opportunity plan](TEAM_OPPORTUNITY_PLAN.md) defines the new evaluations needed.
 
-Reference data from 2024?2025 have already informed model choices. New tuning needs an untouched chronological evaluation period. No result here establishes team-wide coherence: player-level joint statistics and cross-player joint simulation are different requirements.
+Reference data from 2024–2025 have already informed model choices. New tuning needs an untouched chronological evaluation period. No result here establishes team-wide coherence: player-level joint statistics and cross-player joint simulation are different requirements.

@@ -161,21 +161,15 @@ of season.
 
 ## Reproducing this table
 
+The canonical tables are rebuilt from the cache named above:
+
 ```powershell
 uv run python -m hierarchical_football.inference prepare --seasons 2022 2023 2024 2025 `
   --raw-root data/raw --output-root data/processed/inference --rusher-scope backfield
-uv run python local_notes/_eval_real.py
 ```
 
-The first command rebuilds the canonical tables from the cache shown above; the second fits the models
-and prints the metrics and intervals as JSON. The scratch script lives outside the index, so the
-recorded numbers come from the committed modules.
-
-## Reproducing this table
-
-The canonical tables are rebuilt from the cache named above, and then the comparison is assembled from
-the committed modules - a chronological split, one fit per model, per-row losses, and the paired
-game-clustered comparison:
+The comparison is then assembled from the committed modules - a chronological split, one fit per model,
+per-row losses, and the paired game-clustered comparison:
 
 ```python
 import polars as pl

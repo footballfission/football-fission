@@ -231,5 +231,5 @@ for holdout_season, train_seasons in ((2024, [2022, 2023]), (2025, [2022, 2023, 
 
 The shared-penalty cross-check follows the same shape with `fit_completion(..., identities=..., penalty=30.0)`,
 and the running-block table with `fit_pooled_rushing(..., support=True)`. The drivers behind the recorded
-numbers were scratch scripts under the git-ignored `local_notes/`; every model, metric, interval, and
-selection rule they used is in the committed modules.
+numbers were scratch scripts in the directory this checkout keeps out of the index (the scratch rule in
+`.gitignore`); every model, metric, interval, and selection rule they used is in the committed modules.
