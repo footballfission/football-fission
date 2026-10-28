@@ -128,3 +128,17 @@ Run the focused checks with `python -m unittest tests.test_data_pipeline -q`.
 The contract covers required columns only. `PASSING_CONTRACT.optional_columns` and `RUSHING_CONTRACT.optional_columns` list the charted and defensive fields the plan admits - catchability, drop, contested, screen, pressure, yards after catch, box count, personnel, formation. A table without them is valid; their coverage is a data-availability question, not a schema error.
 
 Run the focused checks with `python -m unittest tests.test_inference_contracts -q`.
+
+## Inference table preparation
+
+`hierarchical_football.inference.prepare.passing_targets(pbp, *, positions=None)` turns locally cached play-by-play into the canonical `passing_targets` table and returns `(table, report)`. A kept play is a regular-season pass attempt with a known passer, a known receiver, a known possession team, and a recorded completion of `0` or `1`. Sacks, scrambles, throwaways, two-point attempts, aborted plays, and unidentified plays are removed and counted.
+
+The report is the audit trail for that selection. `report["exclusions"]` maps each reason to the number of plays it removed, `report["exclusions_by_season"]` repeats that per season alongside source and target rows, and `report["missing_context"]` gives null counts and shares for `air_yards`, `yardline_100`, `ydstogo`, and `down`. `report["target_rows"]` plus the exclusions always equals the source row count.
+
+Nothing is imputed and nothing is dropped in silence. An absent or unrecognised `pass_location` becomes `UNKNOWN` instead of a side, and a receiver the roster feed does not identify carries `UNKNOWN` position. A duplicate `(game_id, play_id)` key, a null play key, or an absent source column raises `ValueError` before any row is produced.
+
+`roster_positions(rosters)` reduces a weekly roster feed to one canonical position per player, team, and week. It keeps regular-season rows, maps `HB` onto `RB`, and returns `UNKNOWN` for a tag it does not know. Passing the result as `positions=` fills the `position` column with the as-of-game label; two different positions for one player-week are refused rather than resolved by row order.
+
+The table carries no charted field. Catchability, drop, contested, screen, pressure, and yards after catch arrive only after their per-season coverage is measured.
+
+Run the focused checks with `python -m unittest tests.test_inference_passing -q`.

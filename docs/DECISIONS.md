@@ -77,3 +77,36 @@ is a data-availability question rather than a schema error.
 It does not certify that play-by-play classified a play correctly, that a snap belongs to
 the player credited with it, or that the optional charted fields are trustworthy in the
 seasons where they exist.
+
+## Passing target selection
+
+A targeted pass enters the canonical table when it is a regular-season pass attempt, play-by-play
+names the passer, the receiver, and the possession team, and the completion flag is `0` or `1`.
+Everything else is removed and counted, never repaired. Reason order decides which reason is
+credited: postseason, two-point attempt, aborted play, sack, scramble, not a pass play, no pass
+attempt, missing quarterback, missing receiver, missing team, invalid outcome.
+
+Sacks and scrambles are removed because the play has no target a receiver could have converted;
+a scramble is a run in the record but a failed pass for this question, and counting it as a
+failed completion would penalise a passer for leaving the pocket. Two-point attempts and aborted
+plays are removed because their situation is not comparable to a normal down. A completion flag
+that is missing or outside `0` and `1` is an invalid outcome rather than an incompletion, so a
+corrupt source row never becomes evidence about a passer.
+
+| Source play | Kept | Reason when removed |
+| --- | --- | --- |
+| Regular-season pass attempt, flag `0` or `1`, identities and team present | yes | - |
+| Sack, scramble, throwaway with no receiver | no | `sack`, `scramble`, `missing_receiver` |
+| Two-point attempt, aborted play, non-pass play, no pass attempt | no | `two_point_attempt`, `aborted_play`, `not_a_pass_play`, `no_pass_attempt` |
+| Postseason play | no | `postseason` |
+| Passer or possession team unidentified | no | `missing_quarterback`, `missing_team` |
+| Completion flag missing or not `0` or `1` | no | `invalid_outcome` |
+
+The table measures conversion once a pass is targeted. It cannot measure whether the target should
+have existed: play-by-play records the receiver of the attempt, not the routes run by every other
+eligible receiver. Missing `air_yards`, `yardline_100`, `ydstogo`, and `down` are retained and
+counted in the report rather than filled, so a later model can decide whether to use them.
+
+Charted fields are absent from this stage. Their coverage varies by season, and joining them
+before that coverage is measured would put a season-dependent definition inside the canonical
+table.

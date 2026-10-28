@@ -1,0 +1,172 @@
+"""Canonical passing and rushing tables from locally cached play-by-play.
+
+Preparation owns the selection policy: it keeps the plays the plan declares in scope, counts
+every excluded play by reason, and writes the label `UNKNOWN` where the source does not say.
+It never deduplicates, imputes, or drops a row silently.
+"""
+from __future__ import annotations
+
+import polars as pl
+
+from .contracts import LOCATIONS, PASSING_CONTRACT, UNKNOWN, canonical_position, validate
+
+PLAY_KEYS = ("game_id", "play_id")
+REASON = "exclusion_reason"
+
+# Source fields the passing selection reads. A cached partition that lacks one is refused
+# rather than quietly treated as if the play were not a pass.
+PASSING_SOURCE_COLUMNS = (
+    "season", "week", "game_id", "play_id", "season_type", "posteam", "defteam", "play_type",
+    "two_point_attempt", "aborted_play", "sack", "qb_scramble", "pass_attempt",
+    "passer_player_id", "receiver_player_id", "complete_pass", "air_yards", "yardline_100",
+    "ydstogo", "down", "pass_location",
+)
+ROSTER_COLUMNS = ("season", "week", "team", "position")
+CONTEXT_COLUMNS = ("air_yards", "yardline_100", "ydstogo", "down")
+
+
+def require_columns(frame, columns, name):
+    missing = sorted(set(columns) - set(frame.columns))
+    if missing:
+        raise ValueError(f"{name}: missing columns {missing}")
+
+
+def require_unique(frame, keys, name):
+    keyed = frame.select(list(keys))
+    duplicates = keyed.is_duplicated().sum()
+    if duplicates:
+        raise ValueError(f"{name}: {duplicates} duplicate keys {list(keys)}")
+    nulls = int(keyed.null_count().to_numpy().sum())
+    if nulls:
+        raise ValueError(f"{name}: {nulls} null values in keys {list(keys)}")
+
+
+def _flag(column):
+    """True where a play-by-play flag is set, treating a missing flag as not set."""
+    return pl.col(column).cast(pl.Float64, strict=False).fill_null(0).ne(0)
+
+
+def _label(column, allowed):
+    """A declared label, or UNKNOWN. A missing or unrecognised value is never a guess."""
+    value = pl.col(column).cast(pl.String).str.strip_chars().str.to_lowercase()
+    return pl.when(value.is_in(list(allowed))).then(value).otherwise(pl.lit(UNKNOWN))
+
+
+def roster_positions(rosters):
+    """One canonical position per player, team, and week, from a weekly roster feed."""
+    require_columns(rosters, (*ROSTER_COLUMNS, "gsis_id"), "weekly rosters")
+    frame = rosters
+    if "game_type" in frame.columns:
+        frame = frame.filter(pl.col("game_type").cast(pl.String).str.to_uppercase().eq("REG"))
+    frame = frame.filter(pl.col("gsis_id").is_not_null())
+    positions = frame.select(
+        pl.col("season").cast(pl.Int32), pl.col("week").cast(pl.Int32),
+        pl.col("team").cast(pl.String), pl.col("gsis_id").cast(pl.String).alias("player_id"),
+        pl.col("position").map_elements(canonical_position, return_dtype=pl.String)
+        .fill_null(UNKNOWN).alias("position"),
+    )
+    require_unique(positions, ("season", "week", "team", "player_id"), "weekly roster positions")
+    return positions
+
+
+def _passing_reasons():
+    """Exclusion reasons in policy order; the first matching reason is the one counted."""
+    return (
+        ("postseason", pl.col("season_type").cast(pl.String).str.to_uppercase().fill_null("").ne("REG")),
+        ("two_point_attempt", _flag("two_point_attempt")),
+        ("aborted_play", _flag("aborted_play")),
+        ("sack", _flag("sack")),
+        ("scramble", _flag("qb_scramble")),
+        ("not_a_pass_play", pl.col("play_type").cast(pl.String).fill_null("").ne("pass")),
+        ("no_pass_attempt", _flag("pass_attempt").not_()),
+        ("missing_quarterback", pl.col("passer_player_id").is_null()),
+        ("missing_receiver", pl.col("receiver_player_id").is_null()),
+        ("missing_team", pl.col("posteam").is_null() | pl.col("defteam").is_null()),
+        ("invalid_outcome",
+         pl.col("complete_pass").cast(pl.Float64, strict=False).is_in([0.0, 1.0]).fill_null(False).not_()),
+    )
+
+
+def _tag(frame, reasons):
+    return frame.with_columns(
+        pl.coalesce([pl.when(condition).then(pl.lit(reason)) for reason, condition in reasons]).alias(REASON))
+
+
+def _reason_counts(tagged, reasons):
+    counts = {reason: 0 for reason, _ in reasons}
+    counts.update({str(reason): int(rows) for reason, rows in tagged.group_by(REASON).len().iter_rows()
+                   if reason is not None})
+    return {reason: counts[reason] for reason, _ in reasons}
+
+
+def _context_report(table, columns):
+    report = {}
+    for column in columns:
+        nulls = int(table[column].null_count())
+        report[column] = {"nulls": nulls, "share": round(nulls / table.height, 4) if table.height else None}
+    return report
+
+
+def passing_targets(pbp, *, positions=None):
+    """The canonical targeted-pass table plus the record of what preparation removed.
+
+    A kept play is a regular-season pass attempt with a known passer, a known receiver, a
+    known team, and a known completion. Sacks, scrambles, throwaways, two-point attempts, and
+    aborted plays are excluded because they are not a target a receiver could have converted.
+    """
+    if not isinstance(pbp, pl.DataFrame):
+        raise TypeError(f"play-by-play: expected a polars DataFrame, found {type(pbp).__name__}")
+    require_columns(pbp, PASSING_SOURCE_COLUMNS, "play-by-play")
+    require_unique(pbp, PLAY_KEYS, "play-by-play")
+    reasons = _passing_reasons()
+    tagged = _tag(pbp, reasons)
+    kept = tagged.filter(pl.col(REASON).is_null())
+    table = kept.select(
+        pl.col("season").cast(pl.Int32),
+        pl.col("week").cast(pl.Int32),
+        pl.col("game_id").cast(pl.String),
+        pl.col("play_id").cast(pl.Int64),
+        pl.col("posteam").cast(pl.String).alias("team"),
+        pl.col("defteam").cast(pl.String).alias("defteam"),
+        pl.col("passer_player_id").cast(pl.String).alias("qb_id"),
+        pl.col("receiver_player_id").cast(pl.String).alias("receiver_id"),
+        pl.col("complete_pass").cast(pl.Int8),
+        pl.col("air_yards").cast(pl.Float64),
+        pl.col("yardline_100").cast(pl.Float64),
+        pl.col("ydstogo").cast(pl.Float64),
+        pl.col("down").cast(pl.Int32),
+        _label("pass_location", LOCATIONS).alias("pass_location"),
+        pl.col("receiver_player_id").cast(pl.String).alias("player_id"),
+    )
+    matched = 0
+    if positions is None:
+        table = table.with_columns(pl.lit(None, dtype=pl.String).alias("position"))
+    else:
+        table = table.join(positions, on=["season", "week", "team", "player_id"], how="left",
+                           validate="m:1")
+        matched = int(table["position"].is_not_null().sum())
+    table = table.with_columns(pl.col("position").fill_null(UNKNOWN)).drop("player_id")
+    validate(table, PASSING_CONTRACT)
+    seasons = sorted(table["season"].unique().to_list())
+    excluded = _reason_counts(tagged, reasons)
+    by_season = {}
+    for season in sorted(tagged["season"].unique().to_list()):
+        block = tagged.filter(pl.col("season") == season)
+        by_season[str(int(season))] = {
+            "source_rows": block.height,
+            "target_rows": int(block[REASON].is_null().sum()),
+            "excluded": _reason_counts(block, reasons),
+        }
+    report = {
+        "source_rows": pbp.height,
+        "target_rows": table.height,
+        "excluded_rows": tagged.height - table.height,
+        "exclusions": excluded,
+        "exclusions_by_season": by_season,
+        "missing_context": _context_report(table, CONTEXT_COLUMNS),
+        "unknown_pass_location": int(table["pass_location"].eq(UNKNOWN).sum()),
+        "position_rows_matched": matched,
+        "position_rows_unknown": int(table["position"].eq(UNKNOWN).sum()),
+        "seasons": [int(season) for season in seasons],
+    }
+    return table, report
