@@ -31,14 +31,35 @@ _KINDS = (
 )
 
 
+def missing(value):
+    """True for the three ways a feed says "nothing here": null, NaN, and an empty string.
+
+    The canonical tables keep an absent label as the declared `UNKNOWN` level rather than a null, so
+    every consumer agrees on what "no side", "no gap", or "no position" means, and this is the single
+    test they share.
+    """
+    if value is None:
+        return True
+    if isinstance(value, float) and value != value:
+        return True
+    return not str(value).strip()
+
+
+def label(value):
+    """One categorical cell label: the trimmed text, or `UNKNOWN` when there is nothing to trim."""
+    return UNKNOWN if missing(value) else str(value).strip()
+
+
+def column_labels(frame, column):
+    """The canonical label of every row of one column, in row order."""
+    return [label(value) for value in frame[column].to_list()]
+
+
 def canonical_position(tag):
     """Canonical roster position label, or UNKNOWN when the feed identifies no known one."""
-    if tag is None or (isinstance(tag, float) and tag != tag):
+    if missing(tag):
         return UNKNOWN
-    text = str(tag).strip().upper()
-    if not text:
-        return UNKNOWN
-    return POSITION_ALIASES.get(text, UNKNOWN)
+    return POSITION_ALIASES.get(str(tag).strip().upper(), UNKNOWN)
 
 
 @dataclass(frozen=True)
@@ -54,10 +75,16 @@ class Contract:
 
     @property
     def columns(self):
+        """Every column the table must carry, in declaration order."""
         return tuple(column for column, _ in self.required)
 
     @property
     def optional_columns(self):
+        """Charted or defensive columns the plan admits, which a valid table may omit.
+
+        A table without them is valid; whether they exist in the source is a coverage question that
+        `audits.table_coverage` answers.
+        """
         return tuple(c for c, _ in self.optional)
 
 
@@ -104,14 +131,19 @@ def _kind_matches(dtype, kind):
     for name, matches in _KINDS:
         if name == kind:
             return matches(dtype)
-    raise ValueError(f"Unknown contract kind {kind!r}")
+    raise ValueError(f"contracts._kind_matches: unknown contract kind {kind!r}")
 
 
 def validate(frame, contract):
-    """Return the frame unchanged, or raise for missing columns, null keys, or bad labels.
+    """Return the frame unchanged, or raise for anything that makes it not this contract.
 
-    Validation is read-only. A duplicate play key is an error rather than a row to drop,
-    because silent deduplication would hide a failed join upstream.
+    It raises for a missing required column, a required column of the wrong kind, a null in a column the
+    contract says is never null, a flag outside `0` and `1`, a label outside the declared set, and a
+    duplicate or null play key.
+
+    Validation is read-only: it never casts a dtype, fills a value, or drops a row. A duplicate play key
+    is an error rather than a row to drop, because silent deduplication would hide a failed join
+    upstream.
     """
     if not isinstance(frame, pl.DataFrame):
         raise TypeError(f"{contract.name}: expected a polars DataFrame, found {type(frame).__name__}")
@@ -136,5 +168,6 @@ def validate(frame, contract):
             raise ValueError(f"{contract.name}: unexpected {column} labels {found}")
     duplicates = frame.select(contract.keys).is_duplicated().sum()
     if duplicates:
-        raise ValueError(f"{contract.name}: {duplicates} duplicate play keys {list(contract.keys)}")
+        raise ValueError(f"{contract.name}: {duplicates} rows share a duplicate play key "
+                         f"{list(contract.keys)}")
     return frame

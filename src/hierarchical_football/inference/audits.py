@@ -25,10 +25,9 @@ def table_coverage(table, contract):
         nulls = int(table[column].null_count())
         columns[column] = {"nulls": nulls, "share": _share(nulls, table.height)}
     seasons = {}
-    if "season" in table.columns:
-        for season in sorted(table["season"].unique().to_list()):
-            block = table.filter(pl.col("season") == season)
-            seasons[str(int(season))] = {"rows": block.height}
+    for season in sorted(table["season"].unique().to_list()):
+        block = table.filter(pl.col("season") == season)
+        seasons[str(int(season))] = {"rows": block.height}
     return {
         "table": contract.name,
         "rows": table.height,

@@ -28,11 +28,19 @@ from collections import Counter
 import numpy as np
 import polars as pl
 
-from .contracts import UNKNOWN
+from .contracts import UNKNOWN, label, missing
 
 AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
 FIELD_EDGES = (0.0, 20.0, 40.0, 60.0, 80.0, 100.0)
 DISTANCE_EDGES = (1.0, 4.0, 8.0, 15.0, 25.0)
+
+# The cell schemes the plan names, as the keyword arguments `context_cells` and `player_support` take.
+# A scheme is `{"continuous": ((column, edges), ...), "categorical": (column, ...)}`: every column in
+# `continuous` is banded on its own edges and enters the cell label as one band, every column in
+# `categorical` enters as its own value. `edges` is an ascending tuple whose interior boundaries split
+# the bands, so `AIR_YARDS_EDGES` produces the five labels "0-5", "5-10", "10-15", "15-20", "20-30".
+# A value outside the outer edges lands in the nearest end band, and a null lands in `UNKNOWN`.
+# A scheme is passed with `**`, for example `context_cells(table, **PASSING_CELLS)`.
 PASSING_CELLS = {"continuous": (("air_yards", AIR_YARDS_EDGES),),
                  "categorical": ("down", "pass_location")}
 RUSHING_CELLS = {"continuous": (("yardline_100", FIELD_EDGES), ("ydstogo", DISTANCE_EDGES)),
@@ -41,15 +49,9 @@ DEFAULT_MIN_ROWS = 5
 SCALES = ("probability", "log_odds")
 
 
-def _label(value):
-    if value is None or (isinstance(value, float) and value != value):
-        return UNKNOWN
-    text = str(value).strip()
-    return text if text else UNKNOWN
-
-
 def _bucket(value, edges):
-    if value is None or (isinstance(value, float) and value != value):
+    """The band a numeric context value falls in, or UNKNOWN when there is no value to band."""
+    if missing(value):
         return UNKNOWN
     position = np.digitize(float(value), edges[1:-1])
     return f"{edges[position]:g}-{edges[position + 1]:g}"
@@ -64,15 +66,15 @@ def context_cells(table, *, continuous=(), categorical=()):
     """
     if not isinstance(table, pl.DataFrame):
         raise TypeError(f"context_cells: expected a polars DataFrame, found {type(table).__name__}")
-    missing = [column for column, _ in continuous] + list(categorical)
-    absent = [column for column in missing if column not in table.columns]
+    expected = [column for column, _ in continuous] + list(categorical)
+    absent = [column for column in expected if column not in table.columns]
     if absent:
         raise ValueError(f"context_cells: columns {absent} are not in the table")
     parts = []
     for column, edges in continuous:
         parts.append([f"{column}={_bucket(value, edges)}" for value in table[column].to_list()])
     for column in categorical:
-        parts.append([f"{column}={_label(value)}" for value in table[column].to_list()])
+        parts.append([f"{column}={label(value)}" for value in table[column].to_list()])
     return ["|".join(row) for row in zip(*parts)]
 
 
@@ -146,23 +148,25 @@ def player_support(fitting_table, population, *, identity, player, continuous=()
 
 
 def _forced(population, levels):
+    """A population with every named identity column set to the level asked for."""
     if not levels:
         return population
-    present = [column for column in levels if column in population.columns]
     absent = [column for column in levels if column not in population.columns]
     if absent:
-        raise ValueError(f"standardized contrast: identity columns {absent} are not in the population")
-    return population.with_columns([pl.lit(levels[column]).alias(column) for column in present])
+        raise ValueError(f"design._forced: identity columns {absent} are not in the population")
+    return population.with_columns([pl.lit(level).alias(column) for column, level in levels.items()])
 
 
 def _arm_values(fitted, frame, scale):
     """The fitted value of every population row, on the requested scale."""
     if scale not in SCALES:
-        raise ValueError(f"unknown scale {scale!r}; expected one of {list(SCALES)}")
+        raise ValueError(f"design._arm_values: unknown scale {scale!r}; expected one of "
+                         f"{list(SCALES)}")
     if scale == "probability":
         return np.asarray(fitted.predict(frame), dtype=float)
     if fitted.task != "completion":
-        raise ValueError("a log-odds arm needs a completion model; yards are already additive")
+        raise ValueError("design._arm_values: a log-odds arm needs a completion model; yards are "
+                         "already additive")
     matrix = fitted.holdout_design(frame).matrix
     return np.asarray(fitted.estimator.decision_function(matrix), dtype=float).ravel()
 
@@ -221,7 +225,9 @@ def standardized_contrast(fitted, population, *, identity, left, right, fixed=No
                                           fitting_table=fitting_table, continuous=continuous,
                                           categorical=categorical, min_rows=min_rows, scale=scale)
             for side, level in (("left", left), ("right", right))}
-    if fitting_table is not None:
+    if fitting_table is not None and base:
+        # A fixed partner makes two levels per arm, so the arm could not report the support of the one
+        # that varies; with no fixed level the arm already carries it.
         for arm, level in (("left", left), ("right", right)):
             arms[arm]["support"] = player_support(fitting_table, population, identity=identity,
                                                   player=level, continuous=continuous,

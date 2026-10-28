@@ -24,6 +24,7 @@ from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import brier_score_loss, log_loss
 
 from .baselines import (
+    DEFAULT_MAX_ITER,
     DEFAULT_PENALTY,
     DEFAULT_TOLERANCE,
     FittedBaseline,
@@ -35,13 +36,17 @@ from .baselines import (
     warn_if_not_converged,
 )
 from .contracts import PASSING_CONTRACT, RUSHING_CONTRACT
-from .evaluation import TASKS, chronological_split, row_losses
+from .evaluation import chronological_split, require_task, row_losses
 
 IDENTITY_PENALTIES = (0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0)
 
 
-def identity_columns(design, identities):
-    """Design columns that belong to the named identity blocks."""
+def identity_mask(design, identities):
+    """True for every design column that belongs to one of the named identity blocks.
+
+    The value is a mask over the design's own columns rather than a list of column names, which is what
+    the per-block penalty needs: the columns are scaled before the fit and unscaled after it.
+    """
     prefixes = tuple(f"{column}=" for column in identities)
     return np.array([bool(column.startswith(prefixes)) for column in design.columns])
 
@@ -55,7 +60,7 @@ def _scaled_fit(design, target, *, estimator, identity_penalty, context_penalty,
     coefficients by `k` afterwards reproduces the same predictions on the ordinary design, which is
     what every other function in this package expects to receive.
     """
-    mask = identity_columns(design, identities)
+    mask = identity_mask(design, identities)
     factor = math.sqrt(context_penalty / identity_penalty)
     matrix = np.array(design.matrix, dtype=float, copy=True)
     matrix[:, mask] *= factor
@@ -75,16 +80,22 @@ def _pooled_name(prefix, identities, design, identity_penalty, context_penalty):
 
 
 def fit_pooled_completion(table, *, identities=("qb_id", "receiver_id"), composites=None,
-                          identity_penalty=1.0, context_penalty=DEFAULT_PENALTY, max_iter=1000,
-                          tolerance=DEFAULT_TOLERANCE):
-    """Completion baseline with its own penalty on the identified passers and receivers."""
+                          identity_penalty=1.0, context_penalty=DEFAULT_PENALTY,
+                          max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE):
+    """Completion baseline with its own penalty on the identified passers and receivers.
+
+    `identity_penalty` governs the one-hot player block and `context_penalty` every other column, so a
+    prior strong enough to control hundreds of player columns does not also flatten target depth and
+    field position. The result is the ordinary `FittedBaseline`, so prediction, `identity_terms`, and
+    the evaluation module work on it unchanged.
+    """
     context_penalty = penalty_value(context_penalty)
     identity_penalty = penalty_value(identity_penalty)
     design = passing_design(table, identities=identities, composites=composites)
     target = table["complete_pass"].cast(pl.Float64, strict=False).to_numpy().astype(float)
     if len(np.unique(target)) < 2:
-        raise ValueError("passing: complete_pass holds one outcome only, and a logistic baseline "
-                         "needs both a completion and an incompletion")
+        raise ValueError("passing_targets: complete_pass holds one outcome only, and a logistic "
+                         "baseline needs both a completion and an incompletion")
     estimator = LogisticRegression(C=1.0 / context_penalty, solver="lbfgs", max_iter=max_iter,
                                    tol=tolerance)
     _, factor = _scaled_fit(design, target, estimator=estimator, identity_penalty=identity_penalty,
@@ -92,7 +103,8 @@ def fit_pooled_completion(table, *, identities=("qb_id", "receiver_id"), composi
     probability = estimator.predict_proba(design.matrix)[:, 1]
     in_sample = {"log_loss": float(log_loss(target, probability, labels=[0, 1])),
                  "brier": float(brier_score_loss(target, probability)),
-                 **warn_if_not_converged(convergence(estimator, max_iter), "passing:pooled")}
+                 **warn_if_not_converged(convergence(estimator, max_iter),
+                                          "passing_targets:pooled_identity")}
     return FittedBaseline(
         name=_pooled_name("passing", identities, design, identity_penalty, context_penalty),
         task="completion", target="complete_pass", contract=PASSING_CONTRACT.name,
@@ -103,7 +115,12 @@ def fit_pooled_completion(table, *, identities=("qb_id", "receiver_id"), composi
 
 def fit_pooled_rushing(table, *, identities=("rusher_id",), composites=None, support=True,
                        identity_penalty=1.0, context_penalty=DEFAULT_PENALTY):
-    """Rushing baseline with its own penalty on the identified runners."""
+    """Rushing baseline with its own penalty on the identified runners.
+
+    `support=True` is the default here, because the runner block of the plan sits on top of the support
+    environment rather than replacing it; pass `support=False` for a runner block scored against
+    context alone. The penalties are reported in the fit's `block_penalties`.
+    """
     context_penalty = penalty_value(context_penalty)
     identity_penalty = penalty_value(identity_penalty)
     design = rushing_design(table, identities=identities, composites=composites, support=support)
@@ -130,7 +147,7 @@ def _score(fitted, table, task):
 
 
 def select_identity_penalty(table, *, identities, task="completion", train_seasons,
-                            validation_season, penalties=IDENTITY_PENALTIES,
+                            holdout_season, penalties=IDENTITY_PENALTIES,
                             composites=None, support=True, context_penalty=DEFAULT_PENALTY,
                             contract=None):
     """Choose the player penalty on an inner chronological split, then report the choice.
@@ -140,11 +157,10 @@ def select_identity_penalty(table, *, identities, task="completion", train_seaso
     on no shrinkage. `scores` keeps every grid value, because a flat grid and a peaked one are
     different evidence and only the table shows which one happened.
     """
-    if task not in TASKS:
-        raise ValueError(f"unknown task {task!r}; expected one of {list(TASKS)}")
+    require_task(task)
     contract = contract or (PASSING_CONTRACT if task == "completion" else RUSHING_CONTRACT)
     split = chronological_split(table, train_seasons=train_seasons,
-                                holdout_season=validation_season, contract=contract)
+                                holdout_season=holdout_season, contract=contract)
     fitter = fit_pooled_completion if task == "completion" else fit_pooled_rushing
     scores = {}
     for penalty in penalties:
@@ -163,6 +179,6 @@ def select_identity_penalty(table, *, identities, task="completion", train_seaso
         "scores": scores,
         "flat": abs(ordered[-1][1] - ordered[0][1]) < 1e-12,
         "train_seasons": tuple(int(season) for season in train_seasons),
-        "validation_season": int(validation_season),
-        "rows": {"train": split["train"].height, "validation": split["holdout"].height},
+        "holdout_season": int(holdout_season),
+        "rows": {"train": split["train"].height, "holdout": split["holdout"].height},
     }

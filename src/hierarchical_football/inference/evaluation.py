@@ -10,8 +10,9 @@ The estimand is a row-level average loss over a season drawn from the same games
 cluster contributes all of its rows and the pooled mean is taken over the drawn rows rather than the
 average of per-cluster means: games do not all carry the same number of plays.
 
-Nothing here fits a model, chooses a penalty, or compares more than one pair of models at a time. The
-model that wins is a decision for the research protocol, not for whichever statistic is largest.
+Nothing here fits a model, chooses a penalty, or names a winner: a comparison reports one paired
+difference per model against the one it was measured against, and what a difference means is a decision
+for the research protocol rather than for whichever statistic is largest.
 
 One limit is stated rather than hidden: the percentile bootstrap is narrow when there are very few
 clusters, because few distinct resamples cannot reproduce the sampling spread of a small group of
@@ -25,6 +26,17 @@ import polars as pl
 from .contracts import PASSING_CONTRACT, validate
 
 TASKS = ("completion", "yards")
+
+
+def require_task(task):
+    """The metric family a loss is measured in, or a refusal naming the two that exist.
+
+    One vocabulary is shared by the metric functions, the bootstrap and the model fitter, so a typo
+    fails at the boundary rather than somewhere inside a bootstrap loop.
+    """
+    if task not in TASKS:
+        raise ValueError(f"evaluation.require_task: unknown task {task!r}; expected one of {list(TASKS)}")
+    return task
 DEFAULT_DRAWS = 2000
 DEFAULT_LEVEL = 0.95
 TAIL_YARDS = 10.0
@@ -63,16 +75,17 @@ def row_losses(observed, predicted, *, task):
     The per-row losses are exposed because every interval in this module is built by resampling
     rows inside their clusters, which needs the loss of each row rather than one pooled average.
     """
-    if task not in TASKS:
-        raise ValueError(f"unknown task {task!r}; expected one of {list(TASKS)}")
+    require_task(task)
     truth = np.asarray(observed, dtype=float)
     estimate = np.asarray(predicted, dtype=float)
     if truth.shape != estimate.shape:
-        raise ValueError(f"observed and predicted differ in length: {truth.shape} against {estimate.shape}")
+        raise ValueError(f"evaluation.row_losses: observed and predicted differ in length: "
+                         f"{truth.shape} against {estimate.shape}")
     if task == "yards":
         return np.abs(truth - estimate)
     if not np.all(np.isfinite(estimate)) or np.any((estimate < 0) | (estimate > 1)):
-        raise ValueError("completion probabilities must be finite and inside [0, 1]")
+        raise ValueError("evaluation.row_losses: completion probabilities must be finite and inside "
+                         "[0, 1]")
     clipped = np.clip(estimate, 1e-12, 1 - 1e-12)
     return -(truth * np.log(clipped) + (1 - truth) * np.log(1 - clipped))
 
@@ -105,11 +118,11 @@ def calibration_table(observed, probability, *, bins=10):
     rather than shown as a well-calibrated zero.
     """
     if bins < 1:
-        raise ValueError("calibration needs at least one bin")
+        raise ValueError("evaluation.calibration_table: needs at least one bin")
     truth = np.asarray(observed, dtype=float)
     estimate = np.asarray(probability, dtype=float)
     if truth.shape != estimate.shape or truth.size == 0:
-        raise ValueError("calibration needs one observed value per fitted probability")
+        raise ValueError("evaluation.calibration_table: needs one observed value per fitted probability")
     edges = np.linspace(0.0, 1.0, bins + 1)
     index = np.clip(np.digitize(estimate, edges[1:-1]), 0, bins - 1)
     table = []
@@ -223,23 +236,26 @@ def bootstrap_difference(first, second, *, clusters, draws=DEFAULT_DRAWS, seed=0
             "rows": int(left.size)}
 
 
-def clustered_comparison(losses, *, clusters, reference=None, draws=DEFAULT_DRAWS, seed=0,
+def clustered_comparison(losses, *, clusters, reference_model=None, draws=DEFAULT_DRAWS, seed=0,
                          level=DEFAULT_LEVEL):
     """Interval per model plus the paired difference of every later model against the reference.
 
-    The reference is the first model in insertion order unless the caller names one, which is how
-    the context-only baseline stays the thing every added block is measured against. A positive
-    difference means that model is worse than the reference.
+    The model every other one is measured against is the first in insertion order unless the caller
+    names another, which is how the context-only baseline stays the thing every added block is measured
+    against. It is named `reference_model` rather than `reference`, because `reference` already means
+    "the earlier design whose means and levels are reused" in `baselines`. A positive difference means
+    that model is worse than the one it was measured against.
     """
     if not losses:
         raise ValueError("clustered_comparison needs at least one model")
     names = list(losses)
-    reference = names[0] if reference is None else reference
-    if reference not in losses:
-        raise ValueError(f"unknown reference model {reference!r}; expected one of {names}")
+    reference_model = names[0] if reference_model is None else reference_model
+    if reference_model not in losses:
+        raise ValueError(f"evaluation.clustered_comparison: unknown reference model "
+                         f"{reference_model!r}; expected one of {names}")
     metrics = {name: clustered_metric(losses[name], clusters=clusters, draws=draws, seed=seed,
                                       level=level) for name in names}
-    differences = {name: bootstrap_difference(losses[name], losses[reference], clusters=clusters,
-                                              draws=draws, seed=seed, level=level)
-                   for name in names if name != reference}
-    return {"metrics": metrics, "differences": differences, "reference": reference}
+    differences = {name: bootstrap_difference(losses[name], losses[reference_model],
+                                              clusters=clusters, draws=draws, seed=seed, level=level)
+                   for name in names if name != reference_model}
+    return {"metrics": metrics, "differences": differences, "reference_model": reference_model}

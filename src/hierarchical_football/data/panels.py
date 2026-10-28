@@ -8,7 +8,7 @@ from .. import scoring
 from .history import add_lagged_player_features
 from .reports import latest_known_injury_status
 from .schema import (BLOCK_COLUMNS, KEYS, TEAM_KEYS, PLAYER_OUTCOMES, POSITION_COLUMNS,
-                     LAG_SOURCE_COLUMNS, model_features)
+                     model_features)
 from .store import atomic_json, content_hash, read_table, utc_now, write_frame
 
 

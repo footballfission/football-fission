@@ -10,10 +10,9 @@ import polars as pl
 
 from ..data.store import atomic_json, content_hash, read_table, utc_now, write_frame
 from .audits import pairing_support, table_coverage
-from .contracts import (GAPS, LOCATIONS, PASSING_CONTRACT, POSITIONS, RUSHING_CONTRACT, UNKNOWN,
-                        canonical_position, validate)
+from .contracts import (GAPS, LOCATIONS, PASSING_CONTRACT, PLAY_KEYS, POSITIONS, RUSHING_CONTRACT,
+                        UNKNOWN, canonical_position, validate)
 
-PLAY_KEYS = ("game_id", "play_id")
 REASON = "exclusion_reason"
 
 # Source fields the passing selection reads. A cached partition that lacks one is refused
@@ -45,16 +44,26 @@ RUSHER_SCOPES = {
 
 
 def require_columns(frame, columns, name):
+    """Refuse a source frame that lacks a column the selection reads.
+
+    `name` is the frame being described, so the message says which input was wrong rather than only
+    which column is absent.
+    """
     missing = sorted(set(columns) - set(frame.columns))
     if missing:
         raise ValueError(f"{name}: missing columns {missing}")
 
 
 def require_unique(frame, keys, name):
+    """Refuse a source frame whose play key repeats or is null.
+
+    A duplicate play key means the upstream join already failed, so preparation stops instead of
+    producing a table that counts one play twice.
+    """
     keyed = frame.select(list(keys))
     duplicates = keyed.is_duplicated().sum()
     if duplicates:
-        raise ValueError(f"{name}: {duplicates} duplicate keys {list(keys)}")
+        raise ValueError(f"{name}: {duplicates} rows share a duplicate key {list(keys)}")
     nulls = int(keyed.null_count().to_numpy().sum())
     if nulls:
         raise ValueError(f"{name}: {nulls} null values in keys {list(keys)}")
@@ -65,8 +74,12 @@ def _flag(column):
     return pl.col(column).cast(pl.Float64, strict=False).fill_null(0).ne(0)
 
 
-def _label(column, allowed):
-    """A declared label, or UNKNOWN. A missing or unrecognised value is never a guess."""
+def _declared_label(column, allowed):
+    """A declared label, or UNKNOWN. A missing or unrecognised value is never a guess.
+
+    It is named for what it returns so that it does not collide with `contracts.label`, which turns one
+    scalar into one label. This one is a Polars expression over a column.
+    """
     value = pl.col(column).cast(pl.String).str.strip_chars().str.to_lowercase()
     return pl.when(value.is_in(list(allowed))).then(value).otherwise(pl.lit(UNKNOWN))
 
@@ -154,7 +167,7 @@ def passing_targets(pbp, *, positions=None):
         pl.col("yardline_100").cast(pl.Float64),
         pl.col("ydstogo").cast(pl.Float64),
         pl.col("down").cast(pl.Int32),
-        _label("pass_location", LOCATIONS).alias("pass_location"),
+        _declared_label("pass_location", LOCATIONS).alias("pass_location"),
         pl.col("receiver_player_id").cast(pl.String).alias("player_id"),
     )
     matched = 0
@@ -211,7 +224,8 @@ def _rushing_reasons(scope_labels):
 
 def _rusher_scope(scope):
     if scope not in RUSHER_SCOPES:
-        raise ValueError(f"unknown rusher scope {scope!r}; expected one of {sorted(RUSHER_SCOPES)}")
+        raise ValueError(f"prepare._rusher_scope: unknown rusher scope {scope!r}; expected one of "
+                         f"{sorted(RUSHER_SCOPES)}")
     return RUSHER_SCOPES[scope]
 
 
@@ -227,7 +241,8 @@ def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
         raise TypeError(f"play-by-play: expected a polars DataFrame, found {type(pbp).__name__}")
     scope_labels = _rusher_scope(rusher_scope)
     if positions is None and rusher_scope != "all":
-        raise ValueError(f"rusher scope {rusher_scope!r} needs weekly roster positions")
+        raise ValueError(f"prepare.rushing_plays: rusher scope {rusher_scope!r} needs weekly roster "
+                         f"positions")
     require_columns(pbp, RUSHING_SOURCE_COLUMNS, "play-by-play")
     require_unique(pbp, PLAY_KEYS, "play-by-play")
     located = pbp.with_columns(pl.col("rusher_player_id").cast(pl.String).alias("player_id"),
@@ -250,8 +265,8 @@ def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
         pl.col("defteam").cast(pl.String),
         pl.col("rusher_player_id").cast(pl.String).alias("rusher_id"),
         pl.col("rushing_yards").cast(pl.Float64),
-        _label("run_location", LOCATIONS).alias("run_location"),
-        _label("run_gap", GAPS).alias("run_gap"),
+        _declared_label("run_location", LOCATIONS).alias("run_location"),
+        _declared_label("run_gap", GAPS).alias("run_gap"),
         pl.col("yardline_100").cast(pl.Float64),
         pl.col("ydstogo").cast(pl.Float64),
         pl.col("down").cast(pl.Int32),
@@ -295,11 +310,12 @@ def build(raw, output, seasons, *, rusher_scope="backfield"):
     """
     seasons = sorted({int(season) for season in seasons})
     if not seasons:
-        raise ValueError("Specify at least one season")
+        raise ValueError("prepare.build: name at least one season")
     play_by_play = read_table(raw, "pbp", seasons)
     rosters = read_table(raw, "rosters_weekly", seasons, required=False)
     if rosters.is_empty() and rusher_scope != "all":
-        raise ValueError(f"rusher scope {rusher_scope!r} needs cached rosters_weekly partitions")
+        raise ValueError(f"prepare.build: rusher scope {rusher_scope!r} needs cached rosters_weekly "
+                         f"partitions")
     positions = None if rosters.is_empty() else roster_positions(rosters)
     passing, passing_report = passing_targets(play_by_play, positions=positions)
     rushing, rushing_report = rushing_plays(play_by_play, positions=positions, rusher_scope=rusher_scope)

@@ -26,7 +26,15 @@ import polars as pl
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import brier_score_loss, log_loss
 
-from .contracts import CONTRACTS, PASSING_CONTRACT, RUSHING_CONTRACT, UNKNOWN, validate
+from .contracts import (
+    CONTRACTS,
+    PASSING_CONTRACT,
+    RUSHING_CONTRACT,
+    UNKNOWN,
+    column_labels,
+    label,
+    validate,
+)
 
 PASSING_CONTINUOUS = ("air_yards", "yardline_100", "ydstogo")
 PASSING_CATEGORICAL = ("down", "pass_location")
@@ -38,33 +46,26 @@ DEFAULT_PENALTY = 1.0
 # A loose tolerance stops the logistic solver along the flat direction between an identity block
 # and the unpenalized intercept, which leaves every level term offset by an arbitrary constant.
 DEFAULT_TOLERANCE = 1e-8
+# Weak penalties on several hundred correlated columns need more iterations than the solver's own
+# default allows: on the 2022 passing table an identity design at penalty 0.03 converges in 2021
+# iterations. A fit that needs the extra work gets it, and the report says how many it took.
+DEFAULT_MAX_ITER = 5000
 
 
-def _label(value):
-    if value is None or (isinstance(value, float) and value != value):
-        return UNKNOWN
-    text = str(value).strip()
-    return text if text else UNKNOWN
-
-
-def _levels(labels):
+def _levels(found_labels):
     """Declared levels of one categorical column: sorted, with UNKNOWN kept last."""
-    found = sorted(set(labels) - {UNKNOWN})
-    if UNKNOWN in labels:
-        found.append(UNKNOWN)
-    return tuple(found)
+    levels = sorted(set(found_labels) - {UNKNOWN})
+    if UNKNOWN in found_labels:
+        levels.append(UNKNOWN)
+    return tuple(levels)
 
 
 def _numeric(frame, column):
     return frame[column].cast(pl.Float64, strict=False).to_numpy().astype(float)
 
 
-def _labels(frame, column):
-    return [_label(value) for value in frame[column].to_list()]
-
-
 def _composite_labels(frame, columns):
-    parts = [_labels(frame, column) for column in columns]
+    parts = [column_labels(frame, column) for column in columns]
     return ["|".join(part) for part in zip(*parts)]
 
 
@@ -116,8 +117,10 @@ class Design:
     """A design matrix and the reference statistics that produced it.
 
     `continuous` holds the reference mean, standard deviation, and median per column,
-    `categorical` and `composites` hold the reference level sets, and `identities` adds the
-    exposure of every identified player. `notes` counts what the reference could not cover.
+    `categorical` and `composites` hold the reference level sets, and `identities` adds the exposure of
+    every identified player. `nesting` counts the distinct levels of the first composite every player
+    appears with, which is what turns a term into either a separated term or one that is confounded with
+    its environment. `notes` counts what the reference could not cover.
     """
     name: str
     spec: dict
@@ -186,7 +189,7 @@ def build_design(frame, *, continuous=(), categorical=(), composites=None, ident
         if unseen:
             notes["unseen_categorical_rows"][group] = unseen
     for column in spec["categorical"]:
-        labels = _labels(frame, column)
+        labels = column_labels(frame, column)
         levels = _levels(labels) if reference is None else reference.categorical[column]["levels"]
         block, names, unseen = _one_hot(labels, levels, name=column)
         blocks.append(block)
@@ -194,7 +197,7 @@ def build_design(frame, *, continuous=(), categorical=(), composites=None, ident
         stats["categorical"][column] = {"levels": levels, "unseen_rows": unseen}
         if unseen:
             notes["unseen_categorical_rows"][column] = unseen
-    identity_labels = {column: _labels(frame, column) for column in spec["identities"]}
+    identity_labels = {column: column_labels(frame, column) for column in spec["identities"]}
     for column, labels in identity_labels.items():
         if reference is None:
             levels = tuple(sorted(set(labels)))
@@ -236,10 +239,18 @@ def convergence(estimator, max_iter):
     if iterations is None:            # a closed-form solver has no iteration count to report
         return {"converged": True, "iterations": None}
     used = int(np.max(np.asarray(iterations)))
+    if max_iter is None:              # no cap was named, so there is nothing to fall short of
+        return {"converged": True, "iterations": used}
     return {"converged": used < int(max_iter), "iterations": used}
 
 
 def warn_if_not_converged(state, name):
+    """Warn when a fit stopped at its iteration cap, and pass the state through for reporting.
+
+    A capped fit is still returned, because the weak end of a penalty grid has to stay measurable; the
+    warning and the `converged` flag are how a caller finds out that the coefficients are not at an
+    optimum.
+    """
     if not state["converged"]:
         warnings.warn(f"{name}: the solver stopped at its iteration cap after "
                       f"{state['iterations']} iterations, so the coefficients are not at the optimum",
@@ -259,8 +270,11 @@ def passing_design(table, *, identities=(), composites=None, reference=None):
 
     `composites` composes context columns into one categorical column, for example
     `{"position": ("position",)}` for a per-position mean, which the plan prefers over one shared
-    position intercept. `identities` names the columns whose levels enter as their own one-hot
-    block, typically `("qb_id", "receiver_id")`.
+    position intercept. `identities` names the columns whose levels enter as their own one-hot block,
+    typically `("qb_id", "receiver_id")`.
+
+    An earlier design passed as `reference` is reused instead of validated afresh, because it carries
+    the means and level sets the later frame has to be scored on.
     """
     if reference is None:
         validate(table, PASSING_CONTRACT)
@@ -273,8 +287,10 @@ def passing_design(table, *, identities=(), composites=None, reference=None):
 def rushing_design(table, *, identities=(), composites=None, support=False, reference=None):
     """Design for the rushing baselines on a canonical `rushing_plays` table.
 
-    `support=True` adds the team, location, and gap composition as the `support` column, which is
-    the support environment of the plan. It is an environment label, not a line's quality.
+    `support=False` is the default: the context columns alone. `support=True` adds the team, location,
+    and gap composition as one `support` column, which is the support environment of the plan and the
+    layer the runner block of `partial_pooling` sits on. It is an environment label, not a line's
+    quality, and it holds a team, a scheme, and an opponent at once.
     """
     if reference is None:
         validate(table, RUSHING_CONTRACT)
@@ -285,12 +301,23 @@ def rushing_design(table, *, identities=(), composites=None, support=False, refe
 
 
 def penalty_value(penalty):
+    """A penalty as a positive float, or a refusal.
+
+    Both fitters take a penalty where zero or a negative value would silently mean "no regularisation"
+    or an invalid objective, so the rule is enforced at the boundary rather than inside the solver.
+    """
     if not penalty > 0:
-        raise ValueError(f"penalty must be positive, found {penalty}")
+        raise ValueError(f"baselines.penalty_value: penalty must be positive, found {penalty}")
     return float(penalty)
 
 
 def baseline_name(prefix, identities, design):
+    """The name a fit reports: `prefix:context[+composite][+identity(columns)]`.
+
+    The name is a contract, because a recorded table or a comparison key cites it; a model with the
+    same design and the same penalty has to produce the same string. `partial_pooling` extends it with
+    the two penalties it splits.
+    """
     parts = ["context", *design.composites]
     if identities:
         parts.append("identity(" + ",".join(identities) + ")")
@@ -338,10 +365,13 @@ class FittedBaseline:
     def identity_terms(self, *, identity=None, limit=None):
         """One entry per identified player: term, rows, share, and context nesting.
 
-        `nested` is `True` when the player only ever appears inside one level of the first
-        composite column, which is the case where the term and the environment cannot be told
-        apart. Entries are ordered by identity column and player name, never by term size: an
-        order by size would read as a ranking of players, and a regularized term is not one.
+        `nested` is `True` when the player only ever appears inside one level of the first composite
+        column, which is the case where the term and the environment cannot be told apart.
+
+        `identity` keeps only one block, for example `"qb_id"` out of a passer-and-receiver design, and
+        `limit` truncates the list without changing its order. Entries are ordered by identity column
+        and player name, never by term size: an order by size would read as a ranking of players, and a
+        regularized term is not one.
         """
         coefficients = self.coefficients()
         terms = []
@@ -383,8 +413,8 @@ class FittedBaseline:
         }
 
 
-def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PENALTY, max_iter=1000,
-                   tolerance=DEFAULT_TOLERANCE):
+def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PENALTY,
+                   max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE):
     """Regularized logistic baseline for `complete_pass`.
 
     The context is the pre-play context the contract declares: target depth, field position,
@@ -404,8 +434,8 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
     design = passing_design(table, identities=identities, composites=composites)
     target = table["complete_pass"].cast(pl.Float64, strict=False).to_numpy().astype(float)
     if len(np.unique(target)) < 2:
-        raise ValueError("passing: complete_pass holds one outcome only, and a logistic baseline "
-                         "needs both a completion and an incompletion")
+        raise ValueError("passing_targets: complete_pass holds one outcome only, and a logistic "
+                         "baseline needs both a completion and an incompletion")
     # The penalty is scikit-learn's L2 default: naming it explicitly is deprecated in newer
     # versions and only warns, and every version this project supports defaults to L2.
     estimator = LogisticRegression(C=1.0 / penalty, solver="lbfgs", max_iter=max_iter, tol=tolerance)
@@ -414,7 +444,7 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
     in_sample = {
         "log_loss": float(log_loss(target, probability, labels=[0, 1])),
         "brier": float(brier_score_loss(target, probability)),
-        **warn_if_not_converged(convergence(estimator, max_iter), "passing:context"),
+        **warn_if_not_converged(convergence(estimator, max_iter), "passing_targets:context"),
     }
     return FittedBaseline(name=baseline_name("passing", identities, design), task="completion",
                           target="complete_pass", contract=PASSING_CONTRACT.name, penalty=penalty,

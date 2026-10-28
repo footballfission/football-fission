@@ -80,7 +80,7 @@ from typing import Any
 import numpy as np
 import polars as pl
 from scipy.optimize import minimize_scalar
-from scipy.special import betaln, gammaln
+from scipy.special import betaln
 
 from .features import LGBM_PARAMS, _design
 
