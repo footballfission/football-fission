@@ -158,3 +158,13 @@ Run the focused checks with `python -m unittest tests.test_inference_passing -q`
 The two narrower scopes need `positions`, and raise `ValueError` without them rather than returning an empty table. A carry outside the scope is counted under `outside_rusher_scope`, like every other exclusion, so `report["target_rows"]` plus the exclusions always equals the source row count. The report also carries `rusher_scope`, `scope_positions`, `missing_context` for `yardline_100`, `ydstogo`, and `down`, and the `UNKNOWN` counts for `run_location` and `run_gap`.
 
 Run the focused checks with `python -m unittest tests.test_inference_rushing -q`.
+
+## Inference table audits
+
+`hierarchical_football.inference.audits.table_coverage(table, contract)` reports what a canonical table holds: total rows, rows per season, the null count and null share of every column, and the optional charted columns that are actually present. `present_optional_columns` is empty for a table prepared without a charting join, which is how a reader can tell that catchability was never attached.
+
+`pairing_support(table)` reports the evidence behind a passer-receiver separation. It counts passers, receivers, and distinct pairings, the pairings per receiver, the receivers who appear with exactly one quarterback, and the connected components of the pairing graph with the component that holds the most rows. Two components mean the graph does not connect the passing units: an effect estimated inside one of them rests on its own players and no crossover.
+
+Both functions validate the table first, so an audit never describes a frame that preparation would have rejected. Neither function writes, deduplicates, or repairs anything.
+
+Run the focused checks with `python -m unittest tests.test_inference_audits -q`.

@@ -144,3 +144,24 @@ blocked for him, the scheme, the quarterback's threat, and the opponent all move
 most linemen appear on the same snaps as each other. Missing `run_location`, `run_gap`,
 `yardline_100`, `ydstogo`, and `down` are retained and counted rather than filled, and defensive
 box count is not joined at this stage because it is plausibly a mediator rather than a context.
+
+## Pairing support reporting
+
+An audit reports the evidence a table holds rather than a claim about it. Row counts per season,
+null shares per column, and the connected components of the passer-receiver graph exist so that a
+later contrast can say "this pairing rests on two games" or "these two passers never share a
+receiver" instead of presenting an interval that looks precise.
+
+The graph is built from distinct pairings, not from plays: a receiver with 400 targets from one
+passer is still one edge. Components are reported with their player counts, pairing counts, and
+rows, ordered by rows, and the largest component carries its share of all rows. `single_pairing_components`
+counts the components where every player appears only with each other, which is the case where a
+split between passer and receiver is not identified by the data at all.
+
+Validation runs first, so an audit refuses a table with a duplicate play key or a missing required
+column rather than reporting on a frame that is not canonical.
+
+It does not test separation, estimate anything, or decide whether a contrast is legitimate. It
+reports exposure and connectedness; the analysis decides what that evidence supports.
+It also does not audit charted fields that are absent: `present_optional_columns` names the ones
+the table carries, and their coverage is a question for the season they come from.
