@@ -168,3 +168,19 @@ Run the focused checks with `python -m unittest tests.test_inference_rushing -q`
 Both functions validate the table first, so an audit never describes a frame that preparation would have rejected. Neither function writes, deduplicates, or repairs anything.
 
 Run the focused checks with `python -m unittest tests.test_inference_audits -q`.
+
+## Writing the inference tables
+
+`hierarchical_football.inference.prepare.build(raw, output, seasons, *, rusher_scope="backfield")` reads the cached `pbp` partitions under `raw`, joins cached `rosters_weekly` positions when they exist, and writes the canonical tables and their audits:
+
+| Output | Contents |
+| --- | --- |
+| `<output>/passing_targets.parquet` | the canonical targeted-pass table, with a `.json` sidecar carrying rows, schema, and content hash |
+| `<output>/rushing_plays.parquet` | the canonical rushing attempt table, sidecar included |
+| `<output>/prepare_report.json` | the input manifest, both preparation reports, and the coverage and pairing audits |
+
+`prepare_report.json` names every cached partition the tables were built from, with its `sha256`, so a fitted result can be traced to the exact inputs. The report holds `passing.preparation`, `passing.coverage`, `passing.pairing_support`, and `rushing.preparation` and `rushing.coverage`.
+
+Reading is local only. `build` never starts a download, so a season without a cached `pbp` partition raises `FileNotFoundError` rather than quietly producing a smaller table. Without cached rosters, a position-scoped rushing table raises `ValueError` and the caller can either cache rosters or ask for `rusher_scope="all"`.
+
+Run the focused checks with `python -m unittest tests.test_inference_build -q`.

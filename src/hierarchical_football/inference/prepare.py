@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import polars as pl
 
+from ..data.store import atomic_json, content_hash, read_table, utc_now, write_frame
+from .audits import pairing_support, table_coverage
 from .contracts import (GAPS, LOCATIONS, PASSING_CONTRACT, POSITIONS, RUSHING_CONTRACT, UNKNOWN,
                         canonical_position, validate)
 
@@ -280,3 +282,40 @@ def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
         "seasons": [int(season) for season in sorted(table["season"].unique().to_list())],
     }
     return table, report
+
+
+def build(raw, output, seasons, *, rusher_scope="backfield"):
+    """Write both canonical tables, their audits, and the manifest of the inputs they came from.
+
+    Reading is local only: a missing cached partition raises instead of starting a download, so a
+    prepared table always names the partitions and hashes it was built from.
+    """
+    seasons = sorted({int(season) for season in seasons})
+    if not seasons:
+        raise ValueError("Specify at least one season")
+    play_by_play = read_table(raw, "pbp", seasons)
+    rosters = read_table(raw, "rosters_weekly", seasons, required=False)
+    if rosters.is_empty() and rusher_scope != "all":
+        raise ValueError(f"rusher scope {rusher_scope!r} needs cached rosters_weekly partitions")
+    positions = None if rosters.is_empty() else roster_positions(rosters)
+    passing, passing_report = passing_targets(play_by_play, positions=positions)
+    rushing, rushing_report = rushing_plays(play_by_play, positions=positions, rusher_scope=rusher_scope)
+    report = {
+        "built_at": utc_now(),
+        "seasons": seasons,
+        "rusher_scope": rusher_scope,
+        "roster_positions_joined": positions is not None,
+        "inputs": [{"table_partition": path.relative_to(raw).as_posix(), "sha256": content_hash(path)}
+                   for path in sorted(raw.rglob("part.parquet"))
+                   if path.parts[len(raw.parts)] in ("pbp", "rosters_weekly")
+                   and any(f"season={season}" in path.parts for season in seasons)],
+        "passing": {"preparation": passing_report, "coverage": table_coverage(passing, PASSING_CONTRACT),
+                    "pairing_support": pairing_support(passing)},
+        "rushing": {"preparation": rushing_report, "coverage": table_coverage(rushing, RUSHING_CONTRACT)},
+    }
+    write_frame(output / f"{PASSING_CONTRACT.name}.parquet", passing,
+                metadata={"table": PASSING_CONTRACT.name, "seasons": seasons})
+    write_frame(output / f"{RUSHING_CONTRACT.name}.parquet", rushing,
+                metadata={"table": RUSHING_CONTRACT.name, "seasons": seasons, "rusher_scope": rusher_scope})
+    atomic_json(output / "prepare_report.json", report)
+    return report

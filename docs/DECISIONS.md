@@ -165,3 +165,26 @@ It does not test separation, estimate anything, or decide whether a contrast is 
 reports exposure and connectedness; the analysis decides what that evidence supports.
 It also does not audit charted fields that are absent: `present_optional_columns` names the ones
 the table carries, and their coverage is a question for the season they come from.
+
+## Inference build inputs and manifest
+
+The inference tables are built from the local cache and never from the network. `build` reads the
+partitions that are already there, and a season without a cached `pbp` partition raises
+`FileNotFoundError`. A preparation step that silently downloaded would make a published table
+irreproducible, because the source state it was built from would no longer be pinned by the
+manifest.
+
+`prepare_report.json` records the `sha256` of every input partition, both preparation reports with
+their per-reason exclusions, and the coverage and pairing audits. The tables themselves go to one
+Parquet file per table with a `.json` sidecar, matching the file names the research plan declares:
+the table is cross-season, so partitioning it by season would suggest a boundary the data does not
+have.
+
+Roster positions are optional. Without cached `rosters_weekly` partitions the passing table carries
+`UNKNOWN` positions and a position-scoped rushing table refuses to build, because an empty rushing
+table would look like a season with no carries. `rusher_scope="all"` is the documented way to build
+without rosters.
+
+The manifest does not make the build reproducible from nothing: it records what was read, not where
+it could be fetched again. It also does not verify that a cached partition was the source state at
+some earlier date; the ingest sidecars already record `historical_asof_verified: false`.
