@@ -489,6 +489,15 @@ simpler loss differences favor the added component. Diagnostic probabilities are
 with the scored play keys. These overlapping comparisons are exploratory; they are not
 additive causal feature attributions or a second selection on the outer seasons.
 
+`opponent_penalties` optionally declares an independent prior grid for defending-team
+terms. Contexts without those terms are evaluated once per player-penalty pair. The
+selected prior is then shared by context-only, single-player-block, joint and contrast
+refits. Existing protocols omit the grid and retain their shared context penalty.
+`examples/passing_shrinkage_study.json` admits simpler depth contexts during inner
+selection and evaluates 81 distinct context/player/opponent combinations. No outer
+score selects a new specification. Static opponent effects still do not represent a
+season-aware defense or causal player control.
+
 Optional contrasts specify player IDs, a fixed partner, scale and reference position.
 Their Q is the fold's training targets, never its scored targets. `design.bootstrap_contrast`
 refits on sampled games with fixed penalties; disconnected components, unsupported context

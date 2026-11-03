@@ -23,6 +23,11 @@ def crossed_targets(seed=0, games=16):
 
 
 class ContrastUncertainty(unittest.TestCase):
+    def test_contrast_bootstrap_records_and_reuses_the_opponent_prior(self):
+        report = self.run_contrast(context="expanded", opponent_penalty=100)
+        self.assertEqual(report["opponent_penalty"], 100)
+        self.assertEqual(report["status"], "ok")
+
     def run_contrast(self, train=None, **kwargs):
         function = getattr(design, "bootstrap_contrast", None)
         self.assertIsNotNone(function, "player contrasts need refitted game-bootstrap uncertainty")

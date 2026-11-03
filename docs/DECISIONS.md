@@ -763,3 +763,20 @@ Exact ties retain the existing preference for stronger player shrinkage and the 
 declared context, then prefer stronger opponent shrinkage within that context. No outer
 loss is used. This is selection on one development split, not proof of the best prior or
 of transferable defensive quality; grid-edge choices require sensitivity checks.
+
+## One selected environment prior across player comparisons
+
+A validated study can search opponent shrinkage independently, then carry the winning
+prior unchanged into every outer context and player fit. The context-only fit uses an
+empty player block so it can retain the same environment prior. Player-bootstrap refits
+also retain it and report it explicitly. Contexts lacking opponent terms have no opponent
+prior; older protocols omit the new grid and keep their original shared-context behavior.
+Optional context diagnostics apply the selected opponent prior when available, otherwise
+they retain the context penalty, and do not select a new environment from outer outcomes.
+
+The shrinkage-study example extends the inner candidate set to linear, depth,
+depth-plus-position, depth-plus-opponent and fully expanded contexts. Player penalties
+remain 10, 100 and 1000; opponent penalties are 1, 100 and 10000, giving 81 distinct
+candidates. This is a declared development comparison prompted by inspected earlier
+results, not a prospective confirmatory study. All outer player increments remain
+conditional on the one jointly selected specification and its static opponent model.

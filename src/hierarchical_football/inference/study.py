@@ -33,10 +33,17 @@ class PassingStudySpec:
     reserved_seasons: tuple[int, ...] = ()
     purpose: str = "development"
     context_diagnostics: tuple[str, ...] = ()
+    opponent_penalties: tuple[float, ...] | None = None
 
     def __post_init__(self):
         for key in ("train_seasons", "evaluation_seasons", "reserved_seasons", "penalties", "contexts", "context_diagnostics"):
             object.__setattr__(self, key, tuple(getattr(self, key)))
+        if self.opponent_penalties is not None:
+            object.__setattr__(self, "opponent_penalties", tuple(self.opponent_penalties))
+            if (not self.opponent_penalties or any(type(value) not in (int, float) or
+                    not math.isfinite(value) or value <= 0 for value in self.opponent_penalties) or
+                    len(set(self.opponent_penalties)) != len(self.opponent_penalties)):
+                raise ValueError("opponent_penalties must be unique finite positive values")
         for key in ("train_seasons", "evaluation_seasons", "reserved_seasons"):
             values = getattr(self, key)
             if any(type(value) is not int for value in values) or tuple(sorted(set(values))) != values:
@@ -67,14 +74,22 @@ class PassingStudySpec:
         return (*self.train_seasons, self.selection_season, *self.evaluation_seasons)
 
 
-def _context_diagnostics(train, holdout, *, spec, selected_context, models):
+def _fit_context(train, *, context, context_penalty, opponent_penalty):
+    if opponent_penalty is not None and "opponent" in PASSING_CONTEXT_COMPONENTS[context]:
+        return fit_block_completion(train, identities=(), identity_penalties={}, context=context,
+                                     context_penalty=context_penalty, opponent_penalty=opponent_penalty)
+    return fit_completion(train, context=context, penalty=context_penalty)
+
+
+def _context_diagnostics(train, holdout, *, spec, selected_context, models, opponent_penalty=None):
     if not spec.context_diagnostics:
         return None, {}
     cached = {"linear": models["linear_context"], selected_context: models["context"]}
     fits = {}
     for context in dict.fromkeys(("linear", *spec.context_diagnostics)):
         fits[context] = (cached[context] if context in cached else
-                         fit_completion(train, context=context, penalty=spec.context_penalty))
+                         _fit_context(train, context=context, context_penalty=spec.context_penalty,
+                                      opponent_penalty=opponent_penalty))
     if any(not fit.in_sample["converged"] for fit in fits.values()):
         raise ValueError("nonconverged context diagnostic; no study result emitted")
     truth = holdout["complete_pass"].to_numpy().astype(float)
@@ -118,8 +133,10 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
     table = table.sort(["season", "week", "game_id", "play_id"])
     selection = select_passing_penalties(
         table, train_seasons=spec.train_seasons, holdout_season=spec.selection_season,
-        penalties=spec.penalties, contexts=spec.contexts, context_penalty=spec.context_penalty)
+        penalties=spec.penalties, contexts=spec.contexts, context_penalty=spec.context_penalty,
+        opponent_penalties=spec.opponent_penalties)
     chosen = selection["selected"]
+    opponent_penalty = chosen.get("opponent_penalty")
     penalties = {key: chosen[key] for key in ("qb_id", "receiver_id")}
     folds, predictions = [], []
     for season in spec.evaluation_seasons:
@@ -127,12 +144,13 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
         split = chronological_split(table, train_seasons=train_seasons, holdout_season=season)
         train, holdout = split["train"], split["holdout"]
         models = {"linear_context": fit_completion(train, penalty=spec.context_penalty),
-                  "context": fit_completion(train, context=chosen["context"], penalty=spec.context_penalty)}
+                  "context": _fit_context(train, context=chosen["context"], context_penalty=spec.context_penalty,
+                                           opponent_penalty=opponent_penalty)}
         for name, identities in (("qb", ("qb_id",)), ("receiver", ("receiver_id",)),
                                   ("both", ("qb_id", "receiver_id"))):
             models[name] = fit_block_completion(
                 train, identities=identities, identity_penalties={key: penalties[key] for key in identities},
-                context=chosen["context"], context_penalty=spec.context_penalty)
+                context=chosen["context"], context_penalty=spec.context_penalty, opponent_penalty=opponent_penalty)
         if any(not fit.in_sample["converged"] for fit in models.values()):
             raise ValueError(f"nonconverged outer fit in season {season}; no study result emitted")
         probabilities = {name: fitted.predict(holdout) for name, fitted in models.items()}
@@ -144,7 +162,8 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
         transfer = passing_transfer(train, holdout, predictions=probabilities, reference_model="context",
                                     draws=spec.draws, seed=spec.seed, level=spec.level)
         diagnostics, diagnostic_probabilities = _context_diagnostics(
-            train, holdout, spec=spec, selected_context=chosen["context"], models=models)
+            train, holdout, spec=spec, selected_context=chosen["context"], models=models,
+            opponent_penalty=opponent_penalty)
         frame = holdout.select("season", "week", "game_id", "play_id", "qb_id", "receiver_id", "complete_pass")
         predictions.append(frame.with_columns(
             [pl.Series("p_" + name, values) for name, values in probabilities.items()] +
@@ -158,6 +177,7 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
             population = train if position is None else train.filter(pl.col("position") == position)
             result = bootstrap_contrast(train, population, identity_penalties=penalties,
                                          context=chosen["context"], context_penalty=spec.context_penalty,
+                                         opponent_penalty=opponent_penalty,
                                          draws=contrast_draws, seed=spec.seed, level=spec.level, **args)
             result["reference_population"] = {"source": "training_targets", "position": position,
                                                "seasons": train_seasons, "rows": population.height}

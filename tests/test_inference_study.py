@@ -14,6 +14,31 @@ def study_table():
 
 
 class PassingStudy(unittest.TestCase):
+    def test_selected_opponent_prior_is_shared_by_context_and_identity_ablations(self):
+        _, run = self.api()
+        result = run(study_table(), spec=self.spec(evaluation_seasons=(2024,), contexts=("expanded",),
+                     opponent_penalties=(100,), context_diagnostics=("depth_opponent",)))
+        selection = result["report"]["selection"]["selected"]
+        self.assertEqual(selection["opponent_penalty"], 100)
+        fold = result["report"]["folds"][0]
+        for name in ("context", "qb", "receiver", "both"):
+            self.assertEqual(fold["models"][name]["block_penalties"]["opponent"], 100)
+        self.assertEqual(fold["context_diagnostics"]["models"]["depth_opponent"]
+                         ["block_penalties"]["opponent"], 100)
+
+    def test_no_opponent_context_can_win_an_explicit_opponent_grid(self):
+        _, run = self.api()
+        result = run(study_table(), spec=self.spec(evaluation_seasons=(2024,), contexts=("depth",),
+                                                   opponent_penalties=(1, 100)))
+        self.assertIsNone(result["report"]["selection"]["selected"]["opponent_penalty"])
+        self.assertEqual(len(result["report"]["selection"]["scores"]), 1)
+        self.assertNotIn("opponent", result["report"]["folds"][0]["models"]["both"]["block_penalties"])
+
+    def test_invalid_opponent_grids_fail_at_specification_boundary(self):
+        for values in ((), (0,), (float("inf"),), (100, 100)):
+            with self.subTest(values=values), self.assertRaisesRegex(ValueError, "opponent_penalties"):
+                self.spec(opponent_penalties=values)
+
     def test_context_diagnostics_score_all_declared_combinations_without_affecting_selection(self):
         from hierarchical_football.inference.baselines import PASSING_CONTEXTS
         _, run = self.api()

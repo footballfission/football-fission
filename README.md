@@ -314,3 +314,18 @@ grid values fail. Omitting this argument preserves the historical search and out
 All candidate losses and convergence flags remain visible; later seasons do not enter selection.
 
 Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.
+
+## Studies with matched opponent priors
+
+`PassingStudySpec(opponent_penalties=(...))` enables the independent opponent grid through
+the file runner. The selected prior is reused for context-only, QB-only, receiver-only,
+joint fits, and conditional contrast refits. Context diagnostics use it where they include
+opponent terms; when selection has no opponent block, diagnostics retain the context penalty.
+Omitting the field preserves older protocols. Invalid grids fail specification validation.
+
+`examples/passing_shrinkage_study.json` admits linear and simpler depth combinations with
+the original player grid and an opponent grid of 1, 100 and 10000: 81 inner candidates.
+Selection still fits 2022 and scores 2023 before expanding evaluations in 2024 and 2025.
+No diagnostic or outer loss chooses the context or prior.
+
+Run the focused checks with `python -m unittest tests.test_inference_study tests.test_inference_contrast_uncertainty -q`.

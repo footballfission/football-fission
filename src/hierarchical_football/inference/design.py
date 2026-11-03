@@ -67,7 +67,7 @@ def _passing_component(table, identity, player):
 
 def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
                        identity_penalties, context="linear", context_penalty=1.0,
-                       draws=200, seed=0, level=0.95, scale="probability"):
+                       draws=200, seed=0, level=0.95, scale="probability", opponent_penalty=None):
     """Refitted game-bootstrap interval conditional on penalties, context and a fixed Q.
 
     No interval is emitted for disconnected players or incomplete resamples. This measures
@@ -86,7 +86,7 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
         if player not in set(train[column]):
             raise ValueError(f"bootstrap_contrast requires observed player {column}={player}")
     fit_args = dict(identity_penalties=identity_penalties, context=context,
-                    context_penalty=context_penalty)
+                    context_penalty=context_penalty, opponent_penalty=opponent_penalty)
     fitted = fit_block_completion(train, **fit_args)
     games = sorted(set(train["game_id"]))
     if len(games) < 2:
@@ -103,6 +103,7 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
                                                    "not_converged": 0, "disconnected_players": 0},
               "identity_penalties": dict(identity_penalties), "context": context,
               "context_penalty": context_penalty,
+              "opponent_penalty": opponent_penalty,
               "note": "conditional game bootstrap; fixed penalties and reference population; "
                       "not causal, not a posterior, and not an identification interval"}
     if not connected or not fitted.in_sample["converged"]:
