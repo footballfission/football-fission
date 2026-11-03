@@ -339,3 +339,8 @@ run start; unset values are null. These are requested environment settings, not 
 active thread-pool sizes. Other environment variables are not copied into the manifest.
 
 Run the focused checks with `python -m unittest tests.test_inference_study_io -q`.
+
+The [independent-shrinkage study](docs/PASSING_SHRINKAGE_RESULTS.md) admits simpler contexts
+but selects expanded context with opponent penalty 100 on the earlier validation season.
+Overall completion loss improves slightly in both scored seasons; receiver-specific transfer
+on new partnerships remains uncertain. The finding is development evidence.

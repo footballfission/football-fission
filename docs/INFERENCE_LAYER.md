@@ -429,6 +429,7 @@ Run the focused checks with `python -m unittest tests.test_inference_design -q`.
 | [INFERENCE_MODEL_DEVELOPMENT.md](INFERENCE_MODEL_DEVELOPMENT.md) | The penalty study, per-block pooling, the block ablation, the grid extension, and the current reading of what transfers between seasons |
 | [PASSING_STUDY_RESULTS.md](PASSING_STUDY_RESULTS.md) | The frozen CLI study with expanded context, separate identity penalties, partnership transfer, and secondary receiver-increment diagnostics |
 | [PASSING_CONTEXT_RESULTS.md](PASSING_CONTEXT_RESULTS.md) | Context-component diagnostics plus standard QB/receiver conditional increments, with the original predictions preserved |
+| [PASSING_SHRINKAGE_RESULTS.md](PASSING_SHRINKAGE_RESULTS.md) | Earlier-season selection over simpler contexts and independent opponent priors, with later-season player increments |
 
 These are evidence from local runs rather than test expectations. Each names its inputs by hash, and a
 refresh of the cache can move the numbers.
