@@ -188,3 +188,15 @@ have no interval, and cohorts below ten games are flagged. Nonchronological seas
 invalid probabilities, and misaligned prediction lengths raise `ValueError`.
 
 Run the focused checks with `python -m unittest tests.test_inference_transfer -q`.
+
+## Conditional player-contrast uncertainty
+
+`design.bootstrap_contrast(train, population, identity="receiver_id", left=..., right=...,
+fixed={"qb_id": ...}, identity_penalties=...)` refits completion models on resampled
+training games. It reports a percentile interval conditional on fixed penalties, context,
+and reference population, plus context support and failures. At least two games and twenty
+draws are required. Unobserved identities raise `ValueError`; disconnected partnerships,
+unsupported reference contexts, or any incomplete resample suppress the interval with an
+explicit status. These intervals do not quantify causal identification or tuning uncertainty.
+
+Run the focused checks with `python -m unittest tests.test_inference_contrast_uncertainty -q`.

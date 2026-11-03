@@ -633,3 +633,20 @@ This measures natural chronological transfer. It does not create randomized part
 assignments, withhold every historical instance of a selected pair, or remove selection
 into a new partnership. A favorable new-pair score is evidence about predictive transfer,
 not a causal teammate-swap effect.
+
+## Conditional uncertainty for selected player contrasts
+
+A contrast bootstrap resamples whole training games and refits with fixed block penalties.
+The reference population is fixed rather than resampled. Replicated games receive new keys,
+preserving canonical play uniqueness without dropping repeated rows. All requested players
+must be observed. Disconnected player components or unsupported reference context cells
+suppress an interval; missing players, disconnection, one-outcome samples, or nonconvergence
+in any replicate likewise leave the interval null with failure counts. Successful replicates
+are never silently substituted for the requested bootstrap distribution.
+
+Graph connection is necessary but not sufficient for individual attribution. A narrow
+conditional interval can coexist with prior-sensitive or confounded effects. These are
+percentile intervals for regularized estimates under this specification, not posterior,
+causal, or bias-corrected skill intervals. They omit selection uncertainty and uncertainty
+in the reference population. Synthetic checks cover recovery with crossed partnerships,
+prior sensitivity when partnerships are confounded, and support failures.

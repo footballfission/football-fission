@@ -29,6 +29,7 @@ import numpy as np
 import polars as pl
 
 from .contracts import UNKNOWN, label, missing
+from .partial_pooling import fit_block_completion
 
 AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
 FIELD_EDGES = (0.0, 20.0, 40.0, 60.0, 80.0, 100.0)
@@ -47,6 +48,99 @@ RUSHING_CELLS = {"continuous": (("yardline_100", FIELD_EDGES), ("ydstogo", DISTA
                  "categorical": ("down", "run_location", "run_gap")}
 DEFAULT_MIN_ROWS = 5
 SCALES = ("probability", "log_odds")
+
+
+def _passing_component(table, identity, player):
+    graph = {}
+    for qb, receiver in table.select("qb_id", "receiver_id").unique().iter_rows():
+        q, r = ("qb_id", qb), ("receiver_id", receiver)
+        graph.setdefault(q, set()).add(r)
+        graph.setdefault(r, set()).add(q)
+    reached, frontier = set(), [(identity, player)]
+    while frontier:
+        node = frontier.pop()
+        if node not in reached:
+            reached.add(node)
+            frontier.extend(graph.get(node, set()) - reached)
+    return reached
+
+
+def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
+                       identity_penalties, context="linear", context_penalty=1.0,
+                       draws=200, seed=0, level=0.95, scale="probability"):
+    """Refitted game-bootstrap interval conditional on penalties, context and a fixed Q.
+
+    No interval is emitted for disconnected players or incomplete resamples. This measures
+    sampling variation of a regularized contrast, not causal identification, selection
+    uncertainty, uncertainty in Q, or a Bayesian posterior.
+    """
+    if identity not in ("qb_id", "receiver_id"):
+        raise ValueError("bootstrap_contrast identity must be qb_id or receiver_id")
+    if isinstance(draws, bool) or not isinstance(draws, int) or draws < 20 or not 0 < level < 1:
+        raise ValueError("bootstrap_contrast needs at least 20 draws and 0 < level < 1")
+    fixed = dict(fixed or {})
+    if set(fixed) - {"qb_id", "receiver_id"}:
+        raise ValueError("fixed levels must be passing identities")
+    requested = [(identity, left), (identity, right), *fixed.items()]
+    for column, player in requested:
+        if player not in set(train[column]):
+            raise ValueError(f"bootstrap_contrast requires observed player {column}={player}")
+    fit_args = dict(identity_penalties=identity_penalties, context=context,
+                    context_penalty=context_penalty)
+    fitted = fit_block_completion(train, **fit_args)
+    games = sorted(set(train["game_id"]))
+    if len(games) < 2:
+        raise ValueError("bootstrap_contrast needs at least two games")
+    contrast_args = dict(identity=identity, left=left, right=right, fixed=fixed, scale=scale)
+    contrast = standardized_contrast(fitted, population, fitting_table=train,
+                                     **PASSING_CELLS, **contrast_args)
+    # A connected graph is necessary, not sufficient, for separating these identities.
+    reached = _passing_component(train, identity, left)
+    connected = all(node in reached for node in requested)
+    report = {"contrast": contrast, "interval": None, "draws": draws, "seed": seed,
+              "level": level, "games": len(games), "few_games": len(games) < 10,
+              "successful_draws": 0, "failures": {"missing_player": 0, "single_outcome": 0,
+                                                   "not_converged": 0, "disconnected_players": 0},
+              "identity_penalties": dict(identity_penalties), "context": context,
+              "context_penalty": context_penalty,
+              "note": "conditional game bootstrap; fixed penalties and reference population; "
+                      "not causal, not a posterior, and not an identification interval"}
+    if not connected or not fitted.in_sample["converged"]:
+        report["status"] = "disconnected_players" if not connected else "not_converged"
+        return report
+    if any(arm["support"]["extrapolated_share"] > 1e-9 for arm in contrast["arms"].values()):
+        report["status"] = "unsupported_context"
+        return report
+    blocks = {game: train.filter(pl.col("game_id") == game) for game in games}
+    rng, differences = np.random.default_rng(seed), []
+    for _ in range(draws):
+        # Re-key repeated games so canonical play uniqueness survives cluster resampling.
+        sampled = pl.concat([blocks[games[int(index)]].with_columns(
+            pl.lit(f"bootstrap_game_{copy}").alias("game_id"))
+            for copy, index in enumerate(rng.integers(0, len(games), size=len(games)))])
+        if any(player not in set(sampled[column]) for column, player in requested):
+            report["failures"]["missing_player"] += 1
+            continue
+        if sampled["complete_pass"].n_unique() < 2:
+            report["failures"]["single_outcome"] += 1
+            continue
+        reached = _passing_component(sampled, identity, left)
+        if any(node not in reached for node in requested):
+            report["failures"]["disconnected_players"] += 1
+            continue
+        refit = fit_block_completion(sampled, **fit_args)
+        if not refit.in_sample["converged"]:
+            report["failures"]["not_converged"] += 1
+            continue
+        differences.append(standardized_contrast(refit, population, **contrast_args)["difference"])
+    report["successful_draws"] = len(differences)
+    report["status"] = "ok" if len(differences) == draws else "incomplete_resamples"
+    if report["status"] == "ok":
+        tail = (1 - level) / 2
+        low, high = np.quantile(differences, [tail, 1 - tail])
+        report["interval"] = {"estimate": contrast["difference"], "lower": float(low),
+                               "upper": float(high), "level": level}
+    return report
 
 
 def _bucket(value, edges):
