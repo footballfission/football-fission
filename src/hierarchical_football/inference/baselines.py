@@ -38,7 +38,12 @@ from .contracts import (
 
 PASSING_CONTINUOUS = ("air_yards", "yardline_100", "ydstogo")
 PASSING_CATEGORICAL = ("down", "pass_location")
-PASSING_CONTEXTS = ("linear", "expanded")
+PASSING_CONTEXT_COMPONENTS = {
+    "linear": (), "depth": ("depth",), "position": ("position",), "opponent": ("opponent",),
+    "depth_position": ("depth", "position"), "depth_opponent": ("depth", "opponent"),
+    "position_opponent": ("position", "opponent"), "expanded": ("depth", "position", "opponent"),
+}
+PASSING_CONTEXTS = tuple(PASSING_CONTEXT_COMPONENTS)
 DEPTH_KNOTS = (0.0, 5.0, 10.0, 20.0, 30.0)
 RUSHING_CONTINUOUS = ("yardline_100", "ydstogo")
 RUSHING_CATEGORICAL = ("down", "run_location", "run_gap")
@@ -289,12 +294,17 @@ def passing_design(table, *, identities=(), composites=None, reference=None, con
     if context not in PASSING_CONTEXTS:
         raise ValueError(f"unknown passing context {context!r}; expected {PASSING_CONTEXTS}")
     _require_identity_columns(table, identities, PASSING_CONTRACT)
+    components = PASSING_CONTEXT_COMPONENTS[context]
     hinges = ({f"air_yards_above_{knot:g}": ("air_yards", knot) for knot in DEPTH_KNOTS}
-              if context == "expanded" else {})
-    categorical = PASSING_CATEGORICAL + (("position", "defteam") if context == "expanded" else ())
-    return build_design(table, continuous=PASSING_CONTINUOUS + tuple(hinges), categorical=categorical,
-                        composites=composites, identities=identities, reference=reference,
-                        name="passing", hinges=hinges)
+              if "depth" in components else {})
+    categorical = (PASSING_CATEGORICAL + (("position",) if "position" in components else ()) +
+                   (("defteam",) if "opponent" in components else ()))
+    design = build_design(table, continuous=PASSING_CONTINUOUS + tuple(hinges), categorical=categorical,
+                          composites=composites, identities=identities, reference=reference,
+                          name="passing", hinges=hinges)
+    if reference is None:
+        design.spec["passing_context"] = context
+    return design
 
 
 def rushing_design(table, *, identities=(), composites=None, support=False, reference=None):
@@ -332,8 +342,9 @@ def baseline_name(prefix, identities, design):
     the two penalties it splits.
     """
     parts = ["context", *design.composites]
-    if design.spec.get("hinges"):
-        parts[0] = "context[expanded]"
+    context = design.spec.get("passing_context", "expanded" if design.spec.get("hinges") else "linear")
+    if context != "linear":
+        parts[0] = f"context[{context}]"
     if identities:
         parts.append("identity(" + ",".join(identities) + ")")
     return prefix + ":" + "+".join(parts)

@@ -248,3 +248,14 @@ The [first reproducible passing study](docs/PASSING_STUDY_RESULTS.md) records th
 2022-2025 run: expanded context is selected, and pooled player identities add a small
 completion-loss improvement, including on new partnerships. Receiver-specific transfer
 beyond the QB model remains uncertain. These are development findings, not player grades.
+
+## Passing context components
+
+`fit_completion(..., context=...)` and `passing_design` accept `depth`, `position`,
+`opponent`, `depth_position`, `depth_opponent`, and `position_opponent`, alongside
+`linear` and `expanded`. All retain linear depth and the original situational columns;
+`depth` adds the fixed nonlinear hinges, `position` adds receiver position, and `opponent`
+adds defending-team intercepts. `expanded` includes all three. Names and reference designs
+retain the declared combination. The historical defaults and expanded predictions are unchanged.
+
+Run the focused checks with `python -m unittest tests.test_inference_context -q`.

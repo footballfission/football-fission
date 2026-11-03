@@ -692,3 +692,13 @@ after fitting to reject a mixed-state run. Runtime versions are recorded, not in
 The configuration makes a run reproducible and reviewable; it does not pre-register a
 scientific claim, prove inspection history, license new data, or promote a model. No
 live network requests or automatic updates to forecast chains occur.
+
+## Separate passing-context components
+
+The fixed expanded basis is available as all eight combinations of nonlinear depth,
+position, and defending-team indicators. Every combination retains the original linear
+depth and situational context. This makes matched comparisons possible without changing
+knots, selecting features from outcomes, or conflating opponent indicators with defense
+quality. The declared context name travels with the design and fit; later rows reuse its
+training levels and scaling. Linear and expanded behavior remain compatible with earlier
+runs. Component loss differences describe refitted models, not causal credit for a feature.

@@ -20,6 +20,31 @@ def curved_season(season, seed, rows=1800):
 
 
 class PassingContext(unittest.TestCase):
+    def test_context_components_enter_only_the_declared_designs(self):
+        table = passing_frame({}, dict(position="TE", defteam="C", air_yards=25.0))
+        combinations = {
+            "linear": (False, False, False), "depth": (True, False, False),
+            "position": (False, True, False), "opponent": (False, False, True),
+            "depth_position": (True, True, False), "depth_opponent": (True, False, True),
+            "position_opponent": (False, True, True), "expanded": (True, True, True)}
+        for context, (depth, position, opponent) in combinations.items():
+            with self.subTest(context=context):
+                design = passing_design(table, context=context)
+                self.assertEqual("air_yards_above_10" in design.columns, depth)
+                self.assertEqual("position=TE" in design.columns, position)
+                self.assertEqual("defteam=C" in design.columns, opponent)
+                self.assertIn("air_yards", design.columns)
+
+    def test_component_fits_preserve_their_names_and_reference_design(self):
+        for context in ("depth", "position", "opponent", "depth_position", "depth_opponent", "position_opponent"):
+            with self.subTest(context=context):
+                fit = fit_completion(curved_season(2022, 1), context=context)
+                self.assertIn(f"context[{context}]", fit.name)
+                later = curved_season(2023, 2).with_columns(pl.lit("NEW").alias("defteam"))
+                design = fit.holdout_design(later)
+                self.assertEqual(design.columns, fit.design.columns)
+                self.assertTrue(np.all(np.isfinite(fit.predict(later))))
+
     def test_nonlinear_context_predicts_a_curved_mechanism_out_of_season(self):
         train, holdout = curved_season(2022, 1), curved_season(2023, 2)
         linear = fit_completion(train)
