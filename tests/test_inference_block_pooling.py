@@ -9,6 +9,31 @@ from tests.test_inference_partial_pooling import season_of
 
 
 class PassingBlockPooling(unittest.TestCase):
+    def test_opponent_penalty_can_remove_team_terms_without_removing_player_terms(self):
+        table = self.train.with_columns(pl.when(pl.col("qb_id") == "qb1")
+                                       .then(pl.lit("D1")).otherwise(pl.lit("D2")).alias("defteam"))
+        fit = pooling.fit_block_completion(table, context="expanded", opponent_penalty=1e8,
+                                          identity_penalties={"qb_id": 1, "receiver_id": 1})
+        opponent_terms = [abs(value) for key, value in fit.coefficients().items() if key.startswith("defteam=")]
+        self.assertLess(max(opponent_terms), 1e-5)
+        self.assertGreater(max(abs(term["term"]) for term in fit.identity_terms(identity="qb_id")), 0.5)
+        self.assertEqual(fit.report()["block_penalties"]["opponent"], 1e8)
+
+    def test_context_only_fit_uses_the_same_opponent_prior(self):
+        from hierarchical_football.inference.baselines import fit_completion
+        fit = pooling.fit_block_completion(self.train, identities=(), identity_penalties={},
+                                          context="expanded", opponent_penalty=1)
+        ordinary = fit_completion(self.train, context="expanded")
+        np.testing.assert_allclose(fit.predict(self.train), ordinary.predict(self.train), atol=1e-9)
+        self.assertEqual(fit.report()["identity_levels"], {})
+
+    def test_opponent_penalties_are_finite_positive_and_require_opponent_context(self):
+        for penalty, context in ((0, "expanded"), (float("inf"), "expanded"),
+                                 (float("nan"), "expanded"), (10, "depth")):
+            with self.subTest(penalty=penalty, context=context), self.assertRaisesRegex(ValueError, "opponent"):
+                self.fit(identity_penalties={"qb_id": 1, "receiver_id": 1},
+                         context=context, opponent_penalty=penalty)
+
     def setUp(self):
         self.train = season_of((("qb1", 0.85), ("qb2", 0.15)), 2022, rows=100)
 

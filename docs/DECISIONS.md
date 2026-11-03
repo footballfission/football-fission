@@ -659,7 +659,7 @@ seasons, while keeping selection fixed. Every comparator sees identical held-out
 The five comparators are the historical linear context, selected context, selected context
 with QB only, receiver only, and both. Single-block ablations retain the jointly selected
 penalties, so they measure removal at that specification rather than optimized rivals.
-The block fitter accepts an explicit nonempty subset for these ablations.
+The block fitter accepts an explicit subset for these ablations; an empty subset fits context only.
 
 The report records the specification, complete grid, convergence, input coverage,
 training partnership support, calibration and tails, clustered loss differences, and
@@ -735,3 +735,17 @@ causal credit. No diagnostic result participates in selection or model promotion
 example retains the original selection grid; any later choice informed by these outer
 results needs separate validation. Optional diagnostic probabilities are saved with the
 same play keys so each difference can be independently reproduced.
+
+## Independent opponent shrinkage
+
+Static defending-team intercepts can overfit when they share the weak penalty used for
+well-measured situational context. The block completion fitter can shrink only those
+one-hot columns while leaving the depth basis, position and player priors unchanged.
+Omission retains the original behavior; explicit finite positive opponent penalties are
+allowed only when the context includes defending-team terms. An empty identity tuple
+with an empty penalty mapping fits context alone, allowing matched environment priors
+across context-only, single-player-block and joint-player fits.
+
+This is still a static team association. Shrinkage does not add defensive personnel,
+coverage, season changes or causal interpretation, and it does not establish that an
+opponent block transfers to a later season.

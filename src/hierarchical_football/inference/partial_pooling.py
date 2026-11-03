@@ -28,6 +28,7 @@ from .baselines import (
     DEFAULT_MAX_ITER,
     DEFAULT_PENALTY,
     DEFAULT_TOLERANCE,
+    PASSING_CONTEXT_COMPONENTS,
     FittedBaseline,
     baseline_name,
     convergence,
@@ -44,13 +45,13 @@ PASSING_IDENTITIES = ("qb_id", "receiver_id")
 
 def fit_block_completion(table, *, identity_penalties, context="linear", context_penalty=1.0,
                          max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE,
-                         identities=PASSING_IDENTITIES):
+                         identities=PASSING_IDENTITIES, opponent_penalty=None):
     """Completion fit with separate, finite positive quarterback and receiver penalties.
 
     Context, including expanded depth/position/opponent columns when requested, retains its
     own penalty. This is penalized likelihood, not a sampled Bayesian posterior.
     """
-    if (not identities or len(set(identities)) != len(identities) or
+    if (len(set(identities)) != len(identities) or
             set(identities) - set(PASSING_IDENTITIES) or set(identity_penalties) != set(identities)):
         raise ValueError("identity penalties must name exactly the requested passing identity blocks")
     penalties = {key: float(value) for key, value in identity_penalties.items()}
@@ -58,27 +59,36 @@ def fit_block_completion(table, *, identity_penalties, context="linear", context
            [*penalties.values(), context_penalty]):
         raise ValueError("all block penalties must be finite and positive")
     design = passing_design(table, identities=identities, context=context)
+    if opponent_penalty is not None:
+        if (not math.isfinite(opponent_penalty) or opponent_penalty <= 0 or
+                "opponent" not in PASSING_CONTEXT_COMPONENTS[context]):
+            raise ValueError("opponent penalty must be finite and positive with opponent context")
     target = table["complete_pass"].to_numpy().astype(float)
     if len(np.unique(target)) < 2:
         raise ValueError("completion fitting needs both outcomes")
     scales = np.ones(len(design.columns))
     for identity, penalty in penalties.items():
         scales[identity_mask(design, (identity,))] = math.sqrt(context_penalty / penalty)
+    if opponent_penalty is not None:
+        scales[identity_mask(design, ("defteam",))] = math.sqrt(context_penalty / opponent_penalty)
     estimator = LogisticRegression(C=1.0 / context_penalty, solver="lbfgs", max_iter=max_iter,
                                    tol=tolerance)
     estimator.fit(design.matrix * scales, target)
     estimator.coef_ *= scales
     probability = estimator.predict_proba(design.matrix)[:, 1]
     state = warn_if_not_converged(convergence(estimator, max_iter), "passing:block_identity")
+    block_penalties = {"context": float(context_penalty), "identities": penalties}
+    labels = [*(f"{key}={penalties[key]:g}" for key in identities), f"context={context_penalty:g}"]
+    if opponent_penalty is not None:
+        block_penalties["opponent"] = float(opponent_penalty)
+        labels.append(f"opponent={opponent_penalty:g}")
     return FittedBaseline(
-        name=baseline_name("passing", identities, design) + "[" +
-             ",".join(f"{key}={penalties[key]:g}" for key in identities) +
-             f",context={context_penalty:g}]",
+        name=baseline_name("passing", identities, design) + "[" + ",".join(labels) + "]",
         task="completion", target="complete_pass", contract=PASSING_CONTRACT.name,
         penalty=float(context_penalty), rows=table.height, estimator=estimator, design=design,
         in_sample={"log_loss": float(log_loss(target, probability, labels=[0, 1])),
                    "brier": float(brier_score_loss(target, probability)), **state},
-        block_penalties={"context": float(context_penalty), "identities": penalties})
+        block_penalties=block_penalties)
 
 
 def select_passing_penalties(table, *, train_seasons, holdout_season,

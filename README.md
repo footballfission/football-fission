@@ -292,3 +292,14 @@ depth supplies the consistent context gain; position adds little measurable valu
 static opponent effects are unstable. Receiver information beyond QBs remains uncertain
 on new partnerships. The study preserves the original model predictions and does not
 promote a diagnostic winner from inspected seasons.
+
+## Separate opponent shrinkage
+
+`fit_block_completion(..., opponent_penalty=...)` gives defending-team intercepts a
+finite positive penalty independent of player and situational effects. An explicit
+opponent penalty requires a context containing `opponent`. Omission preserves the earlier
+shared-context behavior. Reports record the effective extra block penalty and fit name.
+`identities=(), identity_penalties={}` fits context only with the same opponent prior,
+so a player comparison need not change its environment regularization.
+
+Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.
