@@ -606,3 +606,16 @@ The linear default remains available for historical reproduction. A defending-te
 intercept is an association, not a defense grade; neither specification sees coverage,
 routes, pressure, or catchability. The expanded context must earn its predictive value
 on earlier validation rows before any final evaluation.
+
+## Independent passing identity priors
+
+Quarterback and receiver intercepts may carry different shrinkage strengths. Both blocks
+must be named explicitly with finite positive penalties; misspelled or omitted blocks fail.
+The existing shared-identity pooling API is unchanged. Selection scores the Cartesian
+product on one earlier season and records convergence for every candidate. Capped fits
+cannot win. Exact ties prefer larger total penalty, then larger QB penalty, then the
+first declared context. The selected context is also used for the context-only comparator,
+so its identity increment is measured on the same difficulty specification.
+
+This remains a penalized point estimate. Separate penalties do not resolve co-occurrence,
+and selection on one inner season is not proof that the selected priors are universally best.

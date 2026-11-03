@@ -166,3 +166,14 @@ The default `linear` context preserves the historical model. These are target-co
 associations, including direction and depth observed at the throw, not pregame features.
 
 Run the focused checks with `python -m unittest tests.test_inference_context -q`.
+
+## Separate passing identity penalties
+
+`fit_block_completion(table, identity_penalties={"qb_id": 100, "receiver_id": 100},
+context="expanded")` fits independent QB and receiver priors with a separate context penalty.
+`select_passing_penalties` evaluates their Cartesian grid and declared context candidates
+on an inner chronological split, returning every score and solver status. Only converged
+fits can win; invalid penalties, missing blocks, and empty grids raise `ValueError`.
+Keep its validation season earlier than the season used for final comparison.
+
+Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.

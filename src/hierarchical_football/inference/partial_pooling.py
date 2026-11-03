@@ -17,6 +17,7 @@ shrunk term into credit.
 from __future__ import annotations
 
 import math
+from itertools import product
 
 import numpy as np
 import polars as pl
@@ -37,6 +38,75 @@ from .baselines import (
 )
 from .contracts import PASSING_CONTRACT, RUSHING_CONTRACT
 from .evaluation import chronological_split, require_task, row_losses
+
+PASSING_IDENTITIES = ("qb_id", "receiver_id")
+
+
+def fit_block_completion(table, *, identity_penalties, context="linear", context_penalty=1.0,
+                         max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE):
+    """Completion fit with separate, finite positive quarterback and receiver penalties.
+
+    Context, including expanded depth/position/opponent columns when requested, retains its
+    own penalty. This is penalized likelihood, not a sampled Bayesian posterior.
+    """
+    if set(identity_penalties) != set(PASSING_IDENTITIES):
+        raise ValueError("identity penalties must name exactly qb_id and receiver_id")
+    penalties = {key: float(value) for key, value in identity_penalties.items()}
+    if any(not math.isfinite(value) or value <= 0 for value in
+           [*penalties.values(), context_penalty]):
+        raise ValueError("all block penalties must be finite and positive")
+    design = passing_design(table, identities=PASSING_IDENTITIES, context=context)
+    target = table["complete_pass"].to_numpy().astype(float)
+    if len(np.unique(target)) < 2:
+        raise ValueError("completion fitting needs both outcomes")
+    scales = np.ones(len(design.columns))
+    for identity, penalty in penalties.items():
+        scales[identity_mask(design, (identity,))] = math.sqrt(context_penalty / penalty)
+    estimator = LogisticRegression(C=1.0 / context_penalty, solver="lbfgs", max_iter=max_iter,
+                                   tol=tolerance)
+    estimator.fit(design.matrix * scales, target)
+    estimator.coef_ *= scales
+    probability = estimator.predict_proba(design.matrix)[:, 1]
+    state = warn_if_not_converged(convergence(estimator, max_iter), "passing:block_identity")
+    return FittedBaseline(
+        name=baseline_name("passing", PASSING_IDENTITIES, design) +
+             f"[qb={penalties['qb_id']:g},receiver={penalties['receiver_id']:g},"
+             f"context={context_penalty:g}]",
+        task="completion", target="complete_pass", contract=PASSING_CONTRACT.name,
+        penalty=float(context_penalty), rows=table.height, estimator=estimator, design=design,
+        in_sample={"log_loss": float(log_loss(target, probability, labels=[0, 1])),
+                   "brier": float(brier_score_loss(target, probability)), **state},
+        block_penalties={"context": float(context_penalty), "identities": penalties})
+
+
+def select_passing_penalties(table, *, train_seasons, holdout_season,
+                             penalties=(10.0, 100.0, 1000.0), contexts=("linear", "expanded"),
+                             context_penalty=1.0):
+    """Select context and two player penalties using an earlier chronological validation season.
+
+    Return all scores and convergence flags. Nonconverged fits are ineligible; exact ties prefer
+    stronger total shrinkage, then stronger QB shrinkage, then the earlier declared context.
+    Rows outside the declared split never enter either the fit or selection score.
+    """
+    if not penalties or not contexts:
+        raise ValueError("selection needs nonempty penalties and contexts")
+    split = chronological_split(table, train_seasons=train_seasons, holdout_season=holdout_season)
+    scores = []
+    for context, qb, receiver in product(contexts, penalties, penalties):
+        fitted = fit_block_completion(split["train"], context=context, context_penalty=context_penalty,
+                                      identity_penalties={"qb_id": qb, "receiver_id": receiver})
+        scores.append({"context": context, "qb_id": float(qb), "receiver_id": float(receiver),
+                       "log_loss": _score(fitted, split["holdout"], "completion"),
+                       **{key: fitted.in_sample[key] for key in ("converged", "iterations")}})
+    eligible = [row for row in scores if row["converged"] and math.isfinite(row["log_loss"])]
+    if not eligible:
+        raise ValueError("no converged passing selection candidate")
+    best = min(eligible, key=lambda row: (row["log_loss"], -(row["qb_id"] + row["receiver_id"]),
+                                         -row["qb_id"], contexts.index(row["context"])))
+    return {"selected": {key: best[key] for key in ("context", "qb_id", "receiver_id")},
+            "scores": scores, "metric": "log_loss", "train_seasons": list(train_seasons),
+            "holdout_season": int(holdout_season), "context_penalty": float(context_penalty),
+            "rows": {"train": split["train"].height, "holdout": split["holdout"].height}}
 
 IDENTITY_PENALTIES = (0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0)
 

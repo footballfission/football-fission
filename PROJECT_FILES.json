@@ -64,6 +64,7 @@
     "tests/test_gain_mixture.py",
     "tests/test_inference_audits.py",
     "tests/test_inference_baselines.py",
+    "tests/test_inference_block_pooling.py",
     "tests/test_inference_build.py",
     "tests/test_inference_cli.py",
     "tests/test_inference_context.py",
