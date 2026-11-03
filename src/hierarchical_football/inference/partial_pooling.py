@@ -93,7 +93,7 @@ def fit_block_completion(table, *, identity_penalties, context="linear", context
 
 def select_passing_penalties(table, *, train_seasons, holdout_season,
                              penalties=(10.0, 100.0, 1000.0), contexts=("linear", "expanded"),
-                             context_penalty=1.0):
+                             context_penalty=1.0, opponent_penalties=None):
     """Select context and two player penalties using an earlier chronological validation season.
 
     Return all scores and convergence flags. Nonconverged fits are ineligible; exact ties prefer
@@ -102,20 +102,37 @@ def select_passing_penalties(table, *, train_seasons, holdout_season,
     """
     if not penalties or not contexts:
         raise ValueError("selection needs nonempty penalties and contexts")
+    if opponent_penalties is not None:
+        if (not opponent_penalties or any(type(value) not in (int, float) or
+                not math.isfinite(value) or value <= 0 for value in opponent_penalties) or
+                len(set(opponent_penalties)) != len(opponent_penalties)):
+            raise ValueError("opponent penalties must be unique finite positive grid values")
     split = chronological_split(table, train_seasons=train_seasons, holdout_season=holdout_season)
     scores = []
-    for context, qb, receiver in product(contexts, penalties, penalties):
-        fitted = fit_block_completion(split["train"], context=context, context_penalty=context_penalty,
-                                      identity_penalties={"qb_id": qb, "receiver_id": receiver})
-        scores.append({"context": context, "qb_id": float(qb), "receiver_id": float(receiver),
-                       "log_loss": _score(fitted, split["holdout"], "completion"),
-                       **{key: fitted.in_sample[key] for key in ("converged", "iterations")}})
+    for context in contexts:
+        if context not in PASSING_CONTEXT_COMPONENTS:
+            raise ValueError(f"unknown passing context {context!r}")
+        opponent_grid = (opponent_penalties if opponent_penalties is not None and
+                         "opponent" in PASSING_CONTEXT_COMPONENTS[context] else (None,))
+        for qb, receiver, opponent in product(penalties, penalties, opponent_grid):
+            fitted = fit_block_completion(split["train"], context=context, context_penalty=context_penalty,
+                                          identity_penalties={"qb_id": qb, "receiver_id": receiver},
+                                          opponent_penalty=opponent)
+            row = {"context": context, "qb_id": float(qb), "receiver_id": float(receiver),
+                   "log_loss": _score(fitted, split["holdout"], "completion"),
+                   **{key: fitted.in_sample[key] for key in ("converged", "iterations")}}
+            if opponent_penalties is not None:
+                row["opponent_penalty"] = float(opponent) if opponent is not None else None
+            scores.append(row)
     eligible = [row for row in scores if row["converged"] and math.isfinite(row["log_loss"])]
     if not eligible:
         raise ValueError("no converged passing selection candidate")
     best = min(eligible, key=lambda row: (row["log_loss"], -(row["qb_id"] + row["receiver_id"]),
-                                         -row["qb_id"], contexts.index(row["context"])))
-    return {"selected": {key: best[key] for key in ("context", "qb_id", "receiver_id")},
+                                         -row["qb_id"], contexts.index(row["context"]),
+                                         -(row.get("opponent_penalty") or 0)))
+    selected_keys = ("context", "qb_id", "receiver_id") + (
+        ("opponent_penalty",) if opponent_penalties is not None else ())
+    return {"selected": {key: best[key] for key in selected_keys},
             "scores": scores, "metric": "log_loss", "train_seasons": list(train_seasons),
             "holdout_season": int(holdout_season), "context_penalty": float(context_penalty),
             "rows": {"train": split["train"].height, "holdout": split["holdout"].height}}

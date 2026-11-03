@@ -82,6 +82,37 @@ class PassingBlockPooling(unittest.TestCase):
         self.assertIn(selected["selected"]["qb_id"], (1, 100))
         self.assertTrue(all(row["converged"] for row in selected["scores"]))
 
+    def test_opponent_selection_does_not_repeat_contexts_without_opponents(self):
+        later = season_of((("qb1", 0.85), ("qb2", 0.15)), 2023, rows=100, seed=1)
+        table = pl.concat([self.train, later])
+        selected = pooling.select_passing_penalties(
+            table, train_seasons=[2022], holdout_season=2023, penalties=(10,),
+            contexts=("depth", "depth_opponent"), opponent_penalties=(1, 100))
+        self.assertEqual(len(selected["scores"]), 3)
+        depth = [row for row in selected["scores"] if row["context"] == "depth"]
+        self.assertEqual(len(depth), 1)
+        self.assertIsNone(depth[0]["opponent_penalty"])
+        self.assertIn("opponent_penalty", selected["selected"])
+
+    def test_opponent_selection_ignores_future_outcomes(self):
+        table = pl.concat([self.train, season_of((("qb1", 0.7), ("qb2", 0.3)), 2023, rows=60),
+                           season_of((("qb1", 0.1), ("qb2", 0.9)), 2024, rows=60)])
+        args = dict(train_seasons=[2022], holdout_season=2023, penalties=(10,),
+                    contexts=("depth", "expanded"), opponent_penalties=(1, 100))
+        selected = pooling.select_passing_penalties(table, **args)
+        changed = table.with_columns(pl.when(pl.col("season") == 2024).then(1 - pl.col("complete_pass"))
+                                    .otherwise(pl.col("complete_pass")).alias("complete_pass"))
+        self.assertEqual(selected, pooling.select_passing_penalties(changed, **args))
+
+    def test_invalid_opponent_grids_are_refused(self):
+        table = pl.concat([self.train, self.train.with_columns(pl.lit(2023).cast(pl.Int32).alias("season"))])
+        # Game keys include their season in real data; make this fixture unambiguous too.
+        table = table.with_columns((pl.col("season").cast(pl.String) + pl.col("game_id")).alias("game_id"))
+        for grid in ((), (0,), (float("nan"),), (10, 10)):
+            with self.subTest(grid=grid), self.assertRaisesRegex(ValueError, "opponent"):
+                pooling.select_passing_penalties(table, train_seasons=[2022], holdout_season=2023,
+                                                 opponent_penalties=grid)
+
 
 if __name__ == "__main__":
     unittest.main()

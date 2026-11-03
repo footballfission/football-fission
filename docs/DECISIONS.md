@@ -749,3 +749,17 @@ across context-only, single-player-block and joint-player fits.
 This is still a static team association. Shrinkage does not add defensive personnel,
 coverage, season changes or causal interpretation, and it does not establish that an
 opponent block transfers to a later season.
+
+## Opponent priors chosen before outer evaluation
+
+The inner passing search may cross separate opponent penalties with context and player
+penalties. A context without defending-team terms has no opponent parameter and is fitted
+once per player-penalty pair, not once for every irrelevant grid value. Explicit opponent
+grids must contain unique finite positive values. Selected no-opponent contexts report
+null, while omission of the option preserves the original shared-context selection API.
+Nonconverged candidates remain in the evidence but cannot win.
+
+Exact ties retain the existing preference for stronger player shrinkage and the earlier
+declared context, then prefer stronger opponent shrinkage within that context. No outer
+loss is used. This is selection on one development split, not proof of the best prior or
+of transferable defensive quality; grid-edge choices require sensitivity checks.

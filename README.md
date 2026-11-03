@@ -303,3 +303,14 @@ shared-context behavior. Reports record the effective extra block penalty and fi
 so a player comparison need not change its environment regularization.
 
 Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.
+
+## Opponent-prior selection
+
+`select_passing_penalties(..., opponent_penalties=(1, 100, 10000))` extends the inner
+chronological search with independent opponent shrinkage. Contexts without opponent
+terms are evaluated once per player-penalty pair; their selected opponent penalty is
+null. Opponent contexts evaluate every declared opponent value. Invalid or duplicate
+grid values fail. Omitting this argument preserves the historical search and output keys.
+All candidate losses and convergence flags remain visible; later seasons do not enter selection.
+
+Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.
