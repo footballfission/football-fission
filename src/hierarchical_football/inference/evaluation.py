@@ -39,8 +39,62 @@ def require_task(task):
     return task
 DEFAULT_DRAWS = 2000
 DEFAULT_LEVEL = 0.95
+TRANSFER_COHORTS = ("known_pair", "new_pair", "unseen_qb", "unseen_receiver", "unseen_both")
 TAIL_YARDS = 10.0
 COMPLETION_TAIL = 2.0
+
+
+def passing_transfer(train, holdout, *, predictions, reference_model=None,
+                     draws=DEFAULT_DRAWS, seed=0, level=DEFAULT_LEVEL):
+    """Score disjoint partnership cohorts defined only by earlier training identities.
+
+    A new pair consists of two previously observed players who never appeared together in
+    training. Unseen players are separate cohorts. This is natural chronological transfer,
+    not a randomized teammate swap or a deliberately held-out edge experiment.
+    """
+    for table in (train, holdout):
+        validate(table, PASSING_CONTRACT)
+        if not table.height:
+            raise ValueError("passing_transfer needs nonempty training and holdout tables")
+    if train["season"].max() >= holdout["season"].min():
+        raise ValueError("passing_transfer training seasons must be earlier than holdout")
+    if not predictions:
+        raise ValueError("passing_transfer needs predictions")
+    truth = holdout["complete_pass"].to_numpy().astype(float)
+    estimates = {name: np.asarray(values, dtype=float) for name, values in predictions.items()}
+    for values in estimates.values():
+        if values.shape != truth.shape:
+            raise ValueError("passing_transfer needs one prediction per holdout row")
+        row_losses(truth, values, task="completion")
+    qbs, receivers = set(train["qb_id"]), set(train["receiver_id"])
+    pairs = set(train.select("qb_id", "receiver_id").iter_rows())
+    assignments = []
+    for qb, receiver in holdout.select("qb_id", "receiver_id").iter_rows():
+        unseen_qb, unseen_receiver = qb not in qbs, receiver not in receivers
+        if unseen_qb and unseen_receiver:
+            cohort = "unseen_both"
+        elif unseen_qb:
+            cohort = "unseen_qb"
+        elif unseen_receiver:
+            cohort = "unseen_receiver"
+        else:
+            cohort = "known_pair" if (qb, receiver) in pairs else "new_pair"
+        assignments.append(cohort)
+    clusters = np.asarray(holdout["game_id"].to_list())
+    cohorts = {}
+    for cohort in TRANSFER_COHORTS:
+        mask = np.asarray(assignments) == cohort
+        rows, games = int(mask.sum()), len(set(clusters[mask]))
+        scores = {name: completion_metrics(truth[mask], values[mask])
+                  for name, values in estimates.items()} if rows else None
+        losses = {name: row_losses(truth[mask], values[mask], task="completion")
+                  for name, values in estimates.items()} if rows else None
+        comparison = (clustered_comparison(losses, clusters=clusters[mask],
+                                           reference_model=reference_model, draws=draws,
+                                           seed=seed, level=level) if games >= 2 else None)
+        cohorts[cohort] = {"rows": rows, "games": games, "few_games": games < 10,
+                           "metrics": scores, "comparison": comparison}
+    return {"assignments": assignments, "cohorts": cohorts}
 
 
 def chronological_split(table, *, train_seasons, holdout_season, contract=PASSING_CONTRACT):

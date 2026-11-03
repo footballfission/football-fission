@@ -619,3 +619,17 @@ so its identity increment is measured on the same difficulty specification.
 
 This remains a penalized point estimate. Separate penalties do not resolve co-occurrence,
 and selection on one inner season is not proof that the selected priors are universally best.
+
+## Natural partnership transfer cohorts
+
+A new partnership requires both players to have appeared in earlier training seasons,
+but never together there. It is separated from three unseen-player groups and known
+partnerships before scoring; cohort membership never reads the outcome. Cohorts partition
+the scored targets exactly. Loss comparisons resample games within a cohort, with no
+interval below two games and a small-sample flag below ten. Empty groups report null
+metrics instead of a score of zero.
+
+This measures natural chronological transfer. It does not create randomized partner
+assignments, withhold every historical instance of a selected pair, or remove selection
+into a new partnership. A favorable new-pair score is evidence about predictive transfer,
+not a causal teammate-swap effect.

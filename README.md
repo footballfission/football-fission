@@ -177,3 +177,14 @@ fits can win; invalid penalties, missing blocks, and empty grids raise `ValueErr
 Keep its validation season earlier than the season used for final comparison.
 
 Run the focused checks with `python -m unittest tests.test_inference_block_pooling -q`.
+
+## Passing partnership transfer
+
+`evaluation.passing_transfer(train, holdout, predictions=...)` scores five disjoint
+cohorts: known pairs, new pairs of known players, unseen QBs, unseen receivers, and both
+unseen. It returns row assignments, cohort counts, completion metrics, and paired
+game-clustered loss comparisons. Empty cohorts have no metrics; fewer than two games
+have no interval, and cohorts below ten games are flagged. Nonchronological seasons,
+invalid probabilities, and misaligned prediction lengths raise `ValueError`.
+
+Run the focused checks with `python -m unittest tests.test_inference_transfer -q`.

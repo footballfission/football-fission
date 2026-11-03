@@ -77,6 +77,7 @@
     "tests/test_inference_rushing.py",
     "tests/test_inference_splits.py",
     "tests/test_inference_team_effect.py",
+    "tests/test_inference_transfer.py",
     "tests/test_inference_volume.py",
     "tests/test_ingest_history.py",
     "tests/test_prepare_script.py",
