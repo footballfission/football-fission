@@ -38,6 +38,8 @@ from .contracts import (
 
 PASSING_CONTINUOUS = ("air_yards", "yardline_100", "ydstogo")
 PASSING_CATEGORICAL = ("down", "pass_location")
+PASSING_CONTEXTS = ("linear", "expanded")
+DEPTH_KNOTS = (0.0, 5.0, 10.0, 20.0, 30.0)
 RUSHING_CONTINUOUS = ("yardline_100", "ydstogo")
 RUSHING_CATEGORICAL = ("down", "run_location", "run_gap")
 MISSING_SUFFIX = "_missing"
@@ -97,12 +99,13 @@ def _nesting(labels_by_identity, context_labels):
     return counted
 
 
-def _spec(continuous, categorical, composites, identities):
+def _spec(continuous, categorical, composites, identities, hinges):
     return {
         "continuous": tuple(continuous),
         "categorical": tuple(categorical),
         "composites": {name: tuple(columns) for name, columns in (composites or {}).items()},
         "identities": tuple(identities),
+        "hinges": dict(hinges or {}),
     }
 
 
@@ -136,7 +139,7 @@ class Design:
 
 
 def build_design(frame, *, continuous=(), categorical=(), composites=None, identities=(),
-                 reference=None, name="design"):
+                 reference=None, name="design", hinges=None):
     """Standardized one-hot design matrix, built from `frame` or from an earlier reference.
 
     With `reference=None` the frame supplies the means, standard deviations, and level sets. Give
@@ -146,7 +149,12 @@ def build_design(frame, *, continuous=(), categorical=(), composites=None, ident
     """
     if not isinstance(frame, pl.DataFrame):
         raise TypeError(f"{name}: expected a polars DataFrame, found {type(frame).__name__}")
-    spec = reference.spec if reference is not None else _spec(continuous, categorical, composites, identities)
+    spec = (reference.spec if reference is not None else
+            _spec(continuous, categorical, composites, identities, hinges))
+    # Fixed hinge bases are recomputed from source values, never trusted from input columns.
+    for derived, (source, knot) in spec.get("hinges", {}).items():
+        raw = _numeric(frame, source)
+        frame = frame.with_columns(pl.Series(derived, np.maximum(raw - knot, 0.0)))
     blocks, columns = [], []
     stats = {"continuous": {}, "categorical": {}, "composites": {}, "identities": {}}
     notes = {"filled_continuous": {}, "unseen_categorical_rows": {}, "unseen_identity_rows": {}}
@@ -265,7 +273,7 @@ def _composed(composites, support):
     return composed
 
 
-def passing_design(table, *, identities=(), composites=None, reference=None):
+def passing_design(table, *, identities=(), composites=None, reference=None, context="linear"):
     """Design for the completion baselines on a canonical `passing_targets` table.
 
     `composites` composes context columns into one categorical column, for example
@@ -278,10 +286,15 @@ def passing_design(table, *, identities=(), composites=None, reference=None):
     """
     if reference is None:
         validate(table, PASSING_CONTRACT)
+    if context not in PASSING_CONTEXTS:
+        raise ValueError(f"unknown passing context {context!r}; expected {PASSING_CONTEXTS}")
     _require_identity_columns(table, identities, PASSING_CONTRACT)
-    return build_design(table, continuous=PASSING_CONTINUOUS, categorical=PASSING_CATEGORICAL,
+    hinges = ({f"air_yards_above_{knot:g}": ("air_yards", knot) for knot in DEPTH_KNOTS}
+              if context == "expanded" else {})
+    categorical = PASSING_CATEGORICAL + (("position", "defteam") if context == "expanded" else ())
+    return build_design(table, continuous=PASSING_CONTINUOUS + tuple(hinges), categorical=categorical,
                         composites=composites, identities=identities, reference=reference,
-                        name="passing")
+                        name="passing", hinges=hinges)
 
 
 def rushing_design(table, *, identities=(), composites=None, support=False, reference=None):
@@ -319,6 +332,8 @@ def baseline_name(prefix, identities, design):
     the two penalties it splits.
     """
     parts = ["context", *design.composites]
+    if design.spec.get("hinges"):
+        parts[0] = "context[expanded]"
     if identities:
         parts.append("identity(" + ",".join(identities) + ")")
     return prefix + ":" + "+".join(parts)
@@ -414,7 +429,7 @@ class FittedBaseline:
 
 
 def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PENALTY,
-                   max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE):
+                   max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE, context="linear"):
     """Regularized logistic baseline for `complete_pass`.
 
     The context is the pre-play context the contract declares: target depth, field position,
@@ -431,7 +446,7 @@ def fit_completion(table, *, identities=(), composites=None, penalty=DEFAULT_PEN
     penalty shrinks every term harder.
     """
     penalty = penalty_value(penalty)
-    design = passing_design(table, identities=identities, composites=composites)
+    design = passing_design(table, identities=identities, composites=composites, context=context)
     target = table["complete_pass"].cast(pl.Float64, strict=False).to_numpy().astype(float)
     if len(np.unique(target)) < 2:
         raise ValueError("passing_targets: complete_pass holds one outcome only, and a logistic "

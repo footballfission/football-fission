@@ -66,6 +66,7 @@
     "tests/test_inference_baselines.py",
     "tests/test_inference_build.py",
     "tests/test_inference_cli.py",
+    "tests/test_inference_context.py",
     "tests/test_inference_contracts.py",
     "tests/test_inference_design.py",
     "tests/test_inference_evaluation.py",

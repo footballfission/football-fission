@@ -155,3 +155,14 @@ Three documents record what the first runs observed, each with the inputs it rea
 | [INFERENCE_MODEL_DEVELOPMENT.md](docs/INFERENCE_MODEL_DEVELOPMENT.md) | The penalty study, per-block pooling, the block ablation, and the corrected reading of what transfers |
 
 Run the focused checks with `python -m unittest tests.test_inference_contracts tests.test_inference_passing tests.test_inference_rushing tests.test_inference_audits tests.test_inference_build tests.test_inference_cli tests.test_prepare_script tests.test_inference_baselines tests.test_inference_evaluation tests.test_inference_partial_pooling tests.test_inference_design -q`.
+
+## Expanded passing context
+
+`fit_completion(..., context="expanded")` uses a fixed piecewise-linear target-depth basis
+with knots at 0, 5, 10, 20, and 30 yards, plus position and defending-team intercepts.
+`passing_design` accepts the same option. Training scaling and category levels are reused
+on later rows; new categories contribute zero. Unknown context names raise `ValueError`.
+The default `linear` context preserves the historical model. These are target-conditional
+associations, including direction and depth observed at the throw, not pregame features.
+
+Run the focused checks with `python -m unittest tests.test_inference_context -q`.

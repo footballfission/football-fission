@@ -593,3 +593,16 @@ where he threw the ball, so it is a smaller question than "how well did he throw
 "how well did he choose". `docs/INFERENCE_DATA_AUDIT.md` and the layer guide state the same thing, and all
 three say it in the same words now: an earlier draft of the data audit claimed the column stays out of the
 model, which the code, the guide, and this record contradict.
+
+## Passing difficulty before player attribution
+
+The expanded completion context uses fixed depth hinges rather than selecting knots on
+scored seasons. Position and opponent intercepts are included in the same context block
+for both models in an identity comparison. The reference design carries transformations,
+training scaling, and observed category levels into later predictions. Derived hinge inputs
+are recomputed from depth, so caller-supplied columns cannot change the basis.
+
+The linear default remains available for historical reproduction. A defending-team
+intercept is an association, not a defense grade; neither specification sees coverage,
+routes, pressure, or catchability. The expanded context must earn its predictive value
+on earlier validation rows before any final evaluation.
