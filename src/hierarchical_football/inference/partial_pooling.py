@@ -43,19 +43,21 @@ PASSING_IDENTITIES = ("qb_id", "receiver_id")
 
 
 def fit_block_completion(table, *, identity_penalties, context="linear", context_penalty=1.0,
-                         max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE):
+                         max_iter=DEFAULT_MAX_ITER, tolerance=DEFAULT_TOLERANCE,
+                         identities=PASSING_IDENTITIES):
     """Completion fit with separate, finite positive quarterback and receiver penalties.
 
     Context, including expanded depth/position/opponent columns when requested, retains its
     own penalty. This is penalized likelihood, not a sampled Bayesian posterior.
     """
-    if set(identity_penalties) != set(PASSING_IDENTITIES):
-        raise ValueError("identity penalties must name exactly qb_id and receiver_id")
+    if (not identities or len(set(identities)) != len(identities) or
+            set(identities) - set(PASSING_IDENTITIES) or set(identity_penalties) != set(identities)):
+        raise ValueError("identity penalties must name exactly the requested passing identity blocks")
     penalties = {key: float(value) for key, value in identity_penalties.items()}
     if any(not math.isfinite(value) or value <= 0 for value in
            [*penalties.values(), context_penalty]):
         raise ValueError("all block penalties must be finite and positive")
-    design = passing_design(table, identities=PASSING_IDENTITIES, context=context)
+    design = passing_design(table, identities=identities, context=context)
     target = table["complete_pass"].to_numpy().astype(float)
     if len(np.unique(target)) < 2:
         raise ValueError("completion fitting needs both outcomes")
@@ -69,9 +71,9 @@ def fit_block_completion(table, *, identity_penalties, context="linear", context
     probability = estimator.predict_proba(design.matrix)[:, 1]
     state = warn_if_not_converged(convergence(estimator, max_iter), "passing:block_identity")
     return FittedBaseline(
-        name=baseline_name("passing", PASSING_IDENTITIES, design) +
-             f"[qb={penalties['qb_id']:g},receiver={penalties['receiver_id']:g},"
-             f"context={context_penalty:g}]",
+        name=baseline_name("passing", identities, design) + "[" +
+             ",".join(f"{key}={penalties[key]:g}" for key in identities) +
+             f",context={context_penalty:g}]",
         task="completion", target="complete_pass", contract=PASSING_CONTRACT.name,
         penalty=float(context_penalty), rows=table.height, estimator=estimator, design=design,
         in_sample={"log_loss": float(log_loss(target, probability, labels=[0, 1])),

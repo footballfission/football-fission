@@ -650,3 +650,25 @@ percentile intervals for regularized estimates under this specification, not pos
 causal, or bias-corrected skill intervals. They omit selection uncertainty and uncertainty
 in the reference population. Synthetic checks cover recovery with crossed partnerships,
 prior sensitivity when partnerships are confounded, and support failures.
+
+## A frozen passing study across expanding seasons
+
+A study chooses context and two identity penalties once on its declared inner split.
+Each outer season fits every declared earlier season, including previously scored outer
+seasons, while keeping selection fixed. Every comparator sees identical held-out plays.
+The five comparators are the historical linear context, selected context, selected context
+with QB only, receiver only, and both. Single-block ablations retain the jointly selected
+penalties, so they measure removal at that specification rather than optimized rivals.
+The block fitter accepts an explicit nonempty subset for these ablations.
+
+The report records the specification, complete grid, convergence, input coverage,
+training partnership support, calibration and tails, clustered loss differences, and
+transfer cohorts. Keyed predictions retain outcomes separately from the report. Requested
+player contrasts use training targets, optionally restricted by position, as Q; no outer
+context or outcome enters that reference population.
+
+Reserved seasons are excluded from every split, and missing requested seasons fail.
+Only development studies are supported: no program can establish that a human has never
+inspected a season. A final untouched evaluation requires a separately documented,
+prospective reservation and a frozen scientific protocol. No model is promoted by this
+runner, and no ranking or causal interpretation is produced.

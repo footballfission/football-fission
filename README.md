@@ -200,3 +200,21 @@ unsupported reference contexts, or any incomplete resample suppress the interval
 explicit status. These intervals do not quantify causal identification or tuning uncertainty.
 
 Run the focused checks with `python -m unittest tests.test_inference_contrast_uncertainty -q`.
+
+## Chronological passing studies
+
+`study.run_passing_study(table, spec=PassingStudySpec(...))` composes inner selection,
+expanding later-season fits, five model ablations, calibration, pairing audits, and
+partnership-transfer comparisons. It returns a report plus keyed row predictions.
+Selection happens once; each outer fit uses only declared earlier seasons. Single-block
+ablations use the selected block penalty, not a separately optimized ablation.
+Optional preselected contrasts use training targets as their fixed reference population.
+
+The frozen specification requires increasing, disjoint training/selection/evaluation
+seasons, positive finite penalties, and at least twenty bootstrap draws. Reserved seasons
+cannot overlap any requested season. Undeclared rows are filtered before validation;
+missing requested seasons and nonconverged outer fits fail. Reports always state
+`purpose="development"` and `untouched_holdout_verified=false`: exclusion alone cannot
+certify a season's inspection history.
+
+Run the focused checks with `python -m unittest tests.test_inference_study -q`.
