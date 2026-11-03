@@ -270,3 +270,19 @@ produce no interval. Passing studies include these comparisons overall and withi
 nonempty transfer cohort; generic transfer calls without all three model keys report null.
 
 Run the focused checks with `python -m unittest tests.test_inference_transfer tests.test_inference_study -q`.
+
+## Passing context diagnostics
+
+`PassingStudySpec(context_diagnostics=(...))` declares context-only diagnostics separate
+from the model-selection candidates in `contexts`. The default empty tuple adds no fits.
+When enabled, the linear reference is included automatically. Each fold records metrics,
+fit reports, paired loss differences against linear context, and every declared pair that
+differs by one component. Saved predictions include `p_context_diagnostic_<context>`.
+Unknown or duplicate diagnostic names and nonconverged diagnostic fits fail the run.
+
+`examples/passing_context_study.json` preserves the original inner selection grid while
+adding all eight diagnostics and standard conditional identity increments. Run it with
+the same `study-passing` command and a fresh output directory. Outer diagnostics do not
+select a new specification, establish feature importance percentages, or certify causality.
+
+Run the focused checks with `python -m unittest tests.test_inference_study -q`.

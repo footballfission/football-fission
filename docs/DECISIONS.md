@@ -717,3 +717,21 @@ The ablations keep jointly selected penalties. They test predictive increments o
 blocks under that specification, not uniquely identified receiver skill, causal credit,
 or performance of separately optimized alternatives. Multiple cohort intervals remain
 development diagnostics and do not constitute independent confirmatory tests.
+
+## Context diagnostics outside model selection
+
+A passing protocol may declare context-only diagnostics independently of its inner
+selection grid. They reuse the fold's training seasons, fixed basis and context penalty,
+then score identical held-out targets. Existing fitted linear and selected contexts are
+reused; other requested combinations are fitted once. The linear reference is always
+included when diagnostics are enabled. Nonconverged diagnostic fits fail the complete
+study rather than quietly dropping a comparison.
+
+Reports include all matched pairs differing by exactly one of nonlinear depth, position,
+or defending-team indicators. Differences are richer minus simpler model loss, with
+paired game-bootstrap intervals. All eight combinations yield twelve such edges. Their
+gains depend on what is already included, so they cannot be summed into percentages of
+causal credit. No diagnostic result participates in selection or model promotion. The
+example retains the original selection grid; any later choice informed by these outer
+results needs separate validation. Optional diagnostic probabilities are saved with the
+same play keys so each difference can be independently reproduced.

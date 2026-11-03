@@ -7,10 +7,10 @@ import math
 import polars as pl
 
 from .audits import pairing_support, table_coverage
-from .baselines import PASSING_CONTEXTS, fit_completion
+from .baselines import PASSING_CONTEXT_COMPONENTS, PASSING_CONTEXTS, fit_completion
 from .contracts import PASSING_CONTRACT, validate
 from .design import bootstrap_contrast
-from .evaluation import chronological_split, clustered_comparison, completion_metrics, identity_increments, passing_transfer, row_losses
+from .evaluation import bootstrap_difference, chronological_split, clustered_comparison, completion_metrics, identity_increments, passing_transfer, row_losses
 from .partial_pooling import fit_block_completion, select_passing_penalties
 
 
@@ -32,9 +32,10 @@ class PassingStudySpec:
     level: float = 0.95
     reserved_seasons: tuple[int, ...] = ()
     purpose: str = "development"
+    context_diagnostics: tuple[str, ...] = ()
 
     def __post_init__(self):
-        for key in ("train_seasons", "evaluation_seasons", "reserved_seasons", "penalties", "contexts"):
+        for key in ("train_seasons", "evaluation_seasons", "reserved_seasons", "penalties", "contexts", "context_diagnostics"):
             object.__setattr__(self, key, tuple(getattr(self, key)))
         for key in ("train_seasons", "evaluation_seasons", "reserved_seasons"):
             values = getattr(self, key)
@@ -53,6 +54,9 @@ class PassingStudySpec:
             raise ValueError("penalties must be nonempty, finite and positive")
         if not self.contexts or len(set(self.contexts)) != len(self.contexts) or set(self.contexts) - set(PASSING_CONTEXTS):
             raise ValueError("contexts must be unique declared passing contexts")
+        if (len(set(self.context_diagnostics)) != len(self.context_diagnostics) or
+                set(self.context_diagnostics) - set(PASSING_CONTEXTS)):
+            raise ValueError("context_diagnostics must contain unique declared passing contexts")
         if type(self.draws) is not int or self.draws < 20 or type(self.seed) is not int or self.seed < 0:
             raise ValueError("declare at least 20 draws and a nonnegative integer seed")
         if type(self.level) not in (int, float) or not 0 < self.level < 1:
@@ -61,6 +65,41 @@ class PassingStudySpec:
     @property
     def requested_seasons(self):
         return (*self.train_seasons, self.selection_season, *self.evaluation_seasons)
+
+
+def _context_diagnostics(train, holdout, *, spec, selected_context, models):
+    if not spec.context_diagnostics:
+        return None, {}
+    cached = {"linear": models["linear_context"], selected_context: models["context"]}
+    fits = {}
+    for context in dict.fromkeys(("linear", *spec.context_diagnostics)):
+        fits[context] = (cached[context] if context in cached else
+                         fit_completion(train, context=context, penalty=spec.context_penalty))
+    if any(not fit.in_sample["converged"] for fit in fits.values()):
+        raise ValueError("nonconverged context diagnostic; no study result emitted")
+    truth = holdout["complete_pass"].to_numpy().astype(float)
+    probabilities = {context: fit.predict(holdout) for context, fit in fits.items()}
+    losses = {context: row_losses(truth, values, task="completion")
+              for context, values in probabilities.items()}
+    clusters = holdout["game_id"].to_list()
+    intervals = dict(clusters=clusters, draws=spec.draws, seed=spec.seed, level=spec.level)
+    increments = []
+    for candidate in fits:
+        components = set(PASSING_CONTEXT_COMPONENTS[candidate])
+        for reference in fits:
+            previous = set(PASSING_CONTEXT_COMPONENTS[reference])
+            added = components - previous
+            if previous < components and len(added) == 1:
+                increments.append({"component": next(iter(added)), "candidate": candidate,
+                                   "reference": reference,
+                                   "difference": bootstrap_difference(losses[candidate], losses[reference],
+                                                                       **intervals)})
+    return {"models": {name: fit.report() for name, fit in fits.items()},
+            "metrics": {name: completion_metrics(truth, values) for name, values in probabilities.items()},
+            "comparison": clustered_comparison(losses, reference_model="linear", **intervals),
+            "component_increments": increments,
+            "note": "declared context-only diagnostics; not used for selection; refitted loss "
+                    "differences depend on the reference and do not allocate causal credit"}, probabilities
 
 
 def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
@@ -104,9 +143,13 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
                                            seed=spec.seed, level=spec.level)
         transfer = passing_transfer(train, holdout, predictions=probabilities, reference_model="context",
                                     draws=spec.draws, seed=spec.seed, level=spec.level)
+        diagnostics, diagnostic_probabilities = _context_diagnostics(
+            train, holdout, spec=spec, selected_context=chosen["context"], models=models)
         frame = holdout.select("season", "week", "game_id", "play_id", "qb_id", "receiver_id", "complete_pass")
         predictions.append(frame.with_columns(
             [pl.Series("p_" + name, values) for name, values in probabilities.items()] +
+            [pl.Series("p_context_diagnostic_" + name, values)
+             for name, values in diagnostic_probabilities.items()] +
             [pl.Series("transfer_cohort", transfer.pop("assignments"))]))
         contrast_reports = []
         for request in contrasts:
@@ -124,6 +167,7 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
                       "models": {name: fitted.report() for name, fitted in models.items()},
                       "metrics": {name: completion_metrics(truth, values) for name, values in probabilities.items()},
                       "comparison": comparison, "transfer": transfer,
+                      "context_diagnostics": diagnostics,
                       "identity_increments": identity_increments(
                           losses, clusters=holdout["game_id"].to_list(), draws=spec.draws,
                           seed=spec.seed, level=spec.level),

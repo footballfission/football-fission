@@ -475,6 +475,19 @@ training partnership support, and five disjoint transfer cohorts. A new partners
 two known players who were never paired in training; unseen players are separate cohorts.
 Groups below two games get no loss interval, and groups below ten are flagged.
 
+`identity_increments` also compares the joint model against QB-only and receiver-only,
+both overall and within each nonempty cohort. This separates receiver information beyond
+QBs from joint-versus-context gains. Increments remain comparisons of refitted blocks at
+jointly selected penalties, not individual skill measurements.
+
+The separate `context_diagnostics` specification field enables context-only comparisons
+without changing the selection grid. `examples/passing_context_study.json` declares all
+eight combinations of nonlinear depth, position and opponent indicators. Each fold records
+their fit reports, scores, and twelve matched one-component increments. Negative richer-minus-
+simpler loss differences favor the added component. Diagnostic probabilities are retained
+with the scored play keys. These overlapping comparisons are exploratory; they are not
+additive causal feature attributions or a second selection on the outer seasons.
+
 Optional contrasts specify player IDs, a fixed partner, scale and reference position.
 Their Q is the fold's training targets, never its scored targets. `design.bootstrap_contrast`
 refits on sampled games with fixed penalties; disconnected components, unsupported context

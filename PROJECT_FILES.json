@@ -23,6 +23,7 @@
     "docs/PASSING_STUDY_RESULTS.md",
     "docs/PIPELINE_VALIDATION.md",
     "docs/TEAM_OPPORTUNITY_PLAN.md",
+    "examples/passing_context_study.json",
     "examples/passing_study.json",
     "examples/predict_wr.py",
     "prepare_inference_tables.py",

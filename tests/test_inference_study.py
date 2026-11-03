@@ -14,6 +14,39 @@ def study_table():
 
 
 class PassingStudy(unittest.TestCase):
+    def test_context_diagnostics_score_all_declared_combinations_without_affecting_selection(self):
+        from hierarchical_football.inference.baselines import PASSING_CONTEXTS
+        _, run = self.api()
+        table = study_table()
+        plain = run(table, spec=self.spec(evaluation_seasons=(2024,)))
+        result = run(table, spec=self.spec(evaluation_seasons=(2024,), context_diagnostics=PASSING_CONTEXTS))
+        self.assertEqual(plain["report"]["selection"], result["report"]["selection"])
+        np.testing.assert_array_equal(plain["predictions"]["p_both"], result["predictions"]["p_both"])
+        diagnostic = result["report"]["folds"][0]["context_diagnostics"]
+        self.assertEqual(set(diagnostic["metrics"]), set(PASSING_CONTEXTS))
+        self.assertEqual(len(diagnostic["component_increments"]), 12)
+        for entry in diagnostic["component_increments"]:
+            self.assertEqual(entry["difference"]["rows"], 100)
+            self.assertIn(entry["component"], ("depth", "position", "opponent"))
+        self.assertIn("p_context_diagnostic_depth", result["predictions"].columns)
+        self.assertEqual(diagnostic["comparison"]["reference_model"], "linear")
+
+    def test_invalid_diagnostic_contexts_are_refused(self):
+        for contexts in (("automatic",), ("depth", "depth")):
+            with self.subTest(contexts=contexts), self.assertRaisesRegex(ValueError, "context_diagnostics"):
+                self.spec(context_diagnostics=contexts)
+
+    def test_context_diagnostic_recovers_a_nonlinear_depth_mechanism(self):
+        from tests.test_inference_context import curved_season
+        _, run = self.api()
+        table = pl.concat([curved_season(year, year, rows=900) for year in (2022, 2023, 2024)])
+        result = run(table, spec=self.spec(evaluation_seasons=(2024,), context_diagnostics=("depth",)))
+        diagnostic = result["report"]["folds"][0]["context_diagnostics"]
+        self.assertLess(diagnostic["comparison"]["differences"]["depth"]["estimate"], -0.05)
+        entry = diagnostic["component_increments"][0]
+        self.assertEqual((entry["component"], entry["candidate"], entry["reference"]),
+                         ("depth", "depth", "linear"))
+
     def api(self):
         self.assertIsNotNone(importlib.util.find_spec("hierarchical_football.inference.study"),
                              "passing research needs a reproducible study composer")
