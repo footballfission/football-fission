@@ -286,3 +286,9 @@ the same `study-passing` command and a fresh output directory. Outer diagnostics
 select a new specification, establish feature importance percentages, or certify causality.
 
 Run the focused checks with `python -m unittest tests.test_inference_study -q`.
+
+The [context-component study](docs/PASSING_CONTEXT_RESULTS.md) finds that nonlinear
+depth supplies the consistent context gain; position adds little measurable value and
+static opponent effects are unstable. Receiver information beyond QBs remains uncertain
+on new partnerships. The study preserves the original model predictions and does not
+promote a diagnostic winner from inspected seasons.
