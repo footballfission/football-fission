@@ -218,3 +218,28 @@ missing requested seasons and nonconverged outer fits fail. Reports always state
 certify a season's inspection history.
 
 Run the focused checks with `python -m unittest tests.test_inference_study -q`.
+
+## Frozen passing-study files
+
+Run the offline workflow with a JSON protocol:
+
+```powershell
+python -m hierarchical_football.inference study-passing --input data/processed/inference/passing_targets.parquet --spec examples/passing_study.json --output-root data/experiments/passing_2024_2025
+```
+
+`study_io.run_study_file(input_path, specification_path, output_root)` validates the
+versioned specification before creating a new output directory. Unknown fields, duplicate
+JSON keys, invalid contrasts, nonfinite values, and existing output paths are refused.
+The example uses already-inspected development seasons; it reserves no untouched data.
+Add preselected comparisons to `contrasts`, for example
+`{"identity":"receiver_id","left":"PLAYER_A","right":"PLAYER_B","fixed":{"qb_id":"QB_ID"},"population_position":"WR"}`,
+using actual IDs observed in every fold's training set.
+
+A complete run contains `report.json`, keyed `predictions.parquet` with a metadata sidecar,
+an exact copy of `specification.json`, and `manifest.json` written last. The manifest records
+input/specification/output hashes, package-source hashes, Git revision when available,
+Python and numerical-library versions. Source, input, or protocol changes during fitting
+fail the run. Failed runs retain `failure.json` without a complete manifest and require a
+new output path for retry. No files are downloaded and no trained forecast model is replaced.
+
+Run the focused checks with `python -m unittest tests.test_inference_study_io -q`.

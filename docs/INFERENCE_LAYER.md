@@ -26,6 +26,7 @@ which checks hold it.
 - [Partial pooling for identified players](#partial-pooling-for-identified-players)
 - [Standardized contrasts and support](#standardized-contrasts-and-support)
 - [Records of the first runs](#records-of-the-first-runs)
+- [Reproducible passing studies](#reproducible-passing-studies)
 - [What the layer does not do yet](#what-the-layer-does-not-do-yet)
 
 ## What the layer is for
@@ -439,13 +440,48 @@ refresh of the cache can move the numbers.
 - No participation join, and no reconciliation of derived game and team counts against a weekly table.
 - No PyMC posterior: the team-effect volume model is a penalized maximum-likelihood fit, which is the
   frequentist cousin of the plan's hierarchy rather than its posterior, and player terms are regularized
-  point estimates with a penalty sensitivity range rather than intervals, and the layer never turns a term into a ranking. The team-game panel that the opportunity
+  point estimates. Selected contrasts support conditional game-bootstrap intervals with fixed
+  penalties and Q, plus separate penalty sensitivity; these are not skill or identification intervals.
+  The layer never turns a term into a ranking. The team-game panel that the opportunity
   models need is built and checked for conservation, and the pooled, team-history, and team-effect volume
   models are fitted and scored on it, but no allocation model is fitted yet and the team effect is not
   promoted: it loses one season and wins the next by a twentieth of a CRPS point.
-- No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency, so the
-  pooling and contrast stages are library functions with no entry point in the tree. The records in
-  `docs/` reached them from scratch drivers, and `tests/test_inference_partial_pooling.py` and
-  `tests/test_inference_design.py` are the only callers a reader can find.
+- No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency.
+  Passing studies now have a CLI and frozen JSON specifications. Earlier records in `docs/`
+  were produced by scratch drivers; new runs can use the workflow below.
 - The rushing support environment is a team, a scheme, a line, and an opponent at once, so it is named an
   environment and never a blocker grade; the completion model cannot see route or target selection.
+
+## Reproducible passing studies
+
+`python -m hierarchical_football.inference study-passing --input data/processed/inference/passing_targets.parquet --spec examples/passing_study.json --output-root data/experiments/passing_2024_2025`
+
+The example freezes a development protocol: train on 2022, choose the passing specification
+on 2023, refit on 2022-2023 for 2024, then 2022-2024 for 2025. Selection is not repeated on
+the outer seasons. It compares the historical linear context to an optional expanded depth
+basis with position and defending-team intercepts, choosing separate QB and receiver penalties
+on the inner split. QB-only and receiver-only ablations retain their jointly selected penalties.
+
+`study.PassingStudySpec` validates chronological seasons, penalties, contexts, uncertainty
+settings and any reserved seasons. `study.run_passing_study` returns a report and keyed
+predictions. `study_io.run_study_file` validates the versioned JSON wrapper and persists
+the exact protocol, report, predictions, metadata and a complete manifest with source,
+input, specification and output hashes plus runtime versions. Existing output paths fail;
+an exception writes `failure.json` instead of a complete manifest. The runner is offline.
+
+Each fold records convergence, calibration and tails, paired game-clustered loss differences,
+training partnership support, and five disjoint transfer cohorts. A new partnership means
+two known players who were never paired in training; unseen players are separate cohorts.
+Groups below two games get no loss interval, and groups below ten are flagged.
+
+Optional contrasts specify player IDs, a fixed partner, scale and reference position.
+Their Q is the fold's training targets, never its scored targets. `design.bootstrap_contrast`
+refits on sampled games with fixed penalties; disconnected components, unsupported context
+cells, or any incomplete resample suppress the conditional interval with an explicit status.
+Connection does not establish identification. No Bayesian posterior or causal credit is claimed.
+
+The protocol always reports development status and `untouched_holdout_verified=false`.
+Declaring a reserved season excludes it from computation; establishing that it has never
+been inspected still requires a prospective research record outside this runner.
+
+Run `python -m unittest tests.test_inference_context tests.test_inference_block_pooling tests.test_inference_transfer tests.test_inference_contrast_uncertainty tests.test_inference_study tests.test_inference_study_io -q`.

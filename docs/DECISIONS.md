@@ -672,3 +672,23 @@ Only development studies are supported: no program can establish that a human ha
 inspected a season. A final untouched evaluation requires a separately documented,
 prospective reservation and a frozen scientific protocol. No model is promoted by this
 runner, and no ranking or causal interpretation is produced.
+
+## Traceable passing-study artifacts
+
+The JSON protocol admits only declared schema fields, rejects duplicate keys and nonfinite
+constants, and validates every contrast before model fitting. The example config names
+2022 training, 2023 selection, and 2024-2025 expanding development evaluations; it does not
+claim to reserve an untouched holdout. Reserved seasons, when supplied, are excluded by
+the study contract and Parquet season predicate before materialization.
+
+Output paths are exclusive to one run. The exact protocol bytes, keyed predictions,
+report, and per-output hashes are retained. A complete manifest is written last, while
+exceptions retain a failure record. A bundle without a complete manifest is incomplete,
+even if individual files exist. Hashes of the consumed input and package source identify
+the actual working code independently of its Git commit; the recorded Git revision alone
+does not assert a clean checkout. Input, source, and protocol hashes are checked again
+after fitting to reject a mixed-state run. Runtime versions are recorded, not installed.
+
+The configuration makes a run reproducible and reviewable; it does not pre-register a
+scientific claim, prove inspection history, license new data, or promote a model. No
+live network requests or automatic updates to forecast chains occur.
