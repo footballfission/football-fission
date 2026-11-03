@@ -427,6 +427,7 @@ Run the focused checks with `python -m unittest tests.test_inference_design -q`.
 | [INFERENCE_DATA_AUDIT.md](INFERENCE_DATA_AUDIT.md) | Observed rows, exclusions, missing-value coverage, and pairing components of the four-season extraction, over the partitions it names by hash |
 | [INFERENCE_BASELINE_AUDIT.md](INFERENCE_BASELINE_AUDIT.md) | Metrics and clustered intervals of the first baseline fit at one shared penalty, with a correction note for its superseded headline |
 | [INFERENCE_MODEL_DEVELOPMENT.md](INFERENCE_MODEL_DEVELOPMENT.md) | The penalty study, per-block pooling, the block ablation, the grid extension, and the current reading of what transfers between seasons |
+| [PASSING_STUDY_RESULTS.md](PASSING_STUDY_RESULTS.md) | The frozen CLI study with expanded context, separate identity penalties, partnership transfer, and secondary receiver-increment diagnostics |
 
 These are evidence from local runs rather than test expectations. Each names its inputs by hash, and a
 refresh of the cache can move the numbers.

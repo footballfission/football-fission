@@ -243,3 +243,8 @@ fail the run. Failed runs retain `failure.json` without a complete manifest and 
 new output path for retry. No files are downloaded and no trained forecast model is replaced.
 
 Run the focused checks with `python -m unittest tests.test_inference_study_io -q`.
+
+The [first reproducible passing study](docs/PASSING_STUDY_RESULTS.md) records the cached
+2022-2025 run: expanded context is selected, and pooled player identities add a small
+completion-loss improvement, including on new partnerships. Receiver-specific transfer
+beyond the QB model remains uncertain. These are development findings, not player grades.
