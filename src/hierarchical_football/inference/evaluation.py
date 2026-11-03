@@ -44,6 +44,34 @@ TAIL_YARDS = 10.0
 COMPLETION_TAIL = 2.0
 
 
+def identity_increments(losses, *, clusters, draws=DEFAULT_DRAWS, seed=0, level=DEFAULT_LEVEL):
+    """Paired incremental loss of receivers beyond QBs, and QBs beyond receivers.
+
+    Model keys are qb, receiver and both. Negative differences favor the combined fit.
+    Comparisons concern refitted blocks at the declared penalties, not causal player credit.
+    """
+    required = ("qb", "receiver", "both")
+    if not set(required) <= set(losses):
+        raise ValueError("identity_increments requires qb, receiver and both losses")
+    clusters = list(clusters)
+    arrays = {name: np.asarray(losses[name], dtype=float) for name in required}
+    if any(values.shape != (len(clusters),) or not values.size or not np.isfinite(values).all()
+           for values in arrays.values()):
+        raise ValueError("identity_increments needs finite aligned losses and one game per row")
+    if type(draws) is not int or draws < 1 or not 0 < level < 1:
+        raise ValueError("identity_increments needs positive draws and 0 < level < 1")
+    games = len(set(clusters))
+    comparisons = {}
+    for key, reference in (("receiver_given_qb", "qb"), ("qb_given_receiver", "receiver")):
+        interval = (bootstrap_difference(arrays["both"], arrays[reference], clusters=clusters,
+                                          draws=draws, seed=seed, level=level) if games >= 2 else None)
+        comparisons[key] = interval
+    return {"rows": len(clusters), "games": games, "few_games": games < 10,
+            "candidate_model": "both", "reference_models": {"receiver_given_qb": "qb",
+                                                              "qb_given_receiver": "receiver"},
+            "comparisons": comparisons}
+
+
 def passing_transfer(train, holdout, *, predictions, reference_model=None,
                      draws=DEFAULT_DRAWS, seed=0, level=DEFAULT_LEVEL):
     """Score disjoint partnership cohorts defined only by earlier training identities.
@@ -93,7 +121,10 @@ def passing_transfer(train, holdout, *, predictions, reference_model=None,
                                            reference_model=reference_model, draws=draws,
                                            seed=seed, level=level) if games >= 2 else None)
         cohorts[cohort] = {"rows": rows, "games": games, "few_games": games < 10,
-                           "metrics": scores, "comparison": comparison}
+                           "metrics": scores, "comparison": comparison,
+                           "identity_increments": (identity_increments(
+                               losses, clusters=clusters[mask], draws=draws, seed=seed, level=level)
+                               if rows and {"qb", "receiver", "both"} <= set(losses) else None)}
     return {"assignments": assignments, "cohorts": cohorts}
 
 

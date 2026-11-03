@@ -259,3 +259,14 @@ adds defending-team intercepts. `expanded` includes all three. Names and referen
 retain the declared combination. The historical defaults and expanded predictions are unchanged.
 
 Run the focused checks with `python -m unittest tests.test_inference_context -q`.
+
+## Conditional identity increments
+
+`evaluation.identity_increments(losses, clusters=...)` compares `both` against `qb`
+(receiver information beyond the QB model) and against `receiver` (QB information beyond
+receivers). Negative loss differences favor adding the block. Inputs must contain finite,
+row-aligned losses for all three models and one game key per row. Fewer than two games
+produce no interval. Passing studies include these comparisons overall and within every
+nonempty transfer cohort; generic transfer calls without all three model keys report null.
+
+Run the focused checks with `python -m unittest tests.test_inference_transfer tests.test_inference_study -q`.

@@ -8,6 +8,46 @@ from tests.inference_fixtures import passing_frame
 
 
 class PassingTransfer(unittest.TestCase):
+    def test_conditional_increments_use_the_other_identity_as_reference(self):
+        function = getattr(evaluation, "identity_increments", None)
+        self.assertIsNotNone(function, "transfer needs receiver increments beyond QB predictions")
+        losses = {"qb": [0.5, 0.6, 0.7, 0.8], "receiver": [0.6, 0.7, 0.8, 0.9],
+                  "both": [0.4, 0.5, 0.6, 0.7]}
+        report = function(losses, clusters=["g1", "g1", "g2", "g2"], draws=30)
+        self.assertAlmostEqual(report["comparisons"]["receiver_given_qb"]["estimate"], -0.1)
+        self.assertAlmostEqual(report["comparisons"]["qb_given_receiver"]["estimate"], -0.2)
+        self.assertEqual(report["games"], 2)
+        for comparison in report["comparisons"].values():
+            self.assertEqual(comparison["rows"], 4)
+
+    def test_conditional_increments_refuse_missing_models_or_misaligned_games(self):
+        function = getattr(evaluation, "identity_increments", None)
+        self.assertIsNotNone(function, "conditional increments must validate aligned losses")
+        for losses, games in (({"qb": [0.5]}, ["g"]),
+                              ({name: [0.5, 0.6] for name in ("qb", "receiver", "both")}, ["g"]),
+                              ({name: [float("nan")] for name in ("qb", "receiver", "both")}, ["g"])):
+            with self.subTest(losses=losses), self.assertRaises(ValueError):
+                function(losses, clusters=games)
+
+    def test_transfer_includes_conditional_increments_only_when_models_exist(self):
+        import polars as pl
+        extra = self.later.with_columns(pl.col("game_id") + "_repeat")
+        self.later = pl.concat([self.later, extra])
+        probabilities = {"context": [0.5] * 10, "qb": [0.6] * 10,
+                         "receiver": [0.55] * 10, "both": [0.65] * 10}
+        report = self.transfer(predictions=probabilities, draws=20)
+        cohort = report["cohorts"]["new_pair"]
+        self.assertIn("identity_increments", cohort)
+        increment = cohort["identity_increments"]["comparisons"]["receiver_given_qb"]
+        self.assertEqual(increment["rows"], 2)
+        self.assertEqual(increment["clusters"], 2)
+
+    def test_single_game_has_point_metrics_but_no_conditional_interval(self):
+        report = self.transfer(predictions={name: [0.5] * 5 for name in ("qb", "receiver", "both")}, draws=20)
+        cohort = report["cohorts"]["new_pair"]
+        self.assertIsNotNone(cohort["metrics"])
+        self.assertIsNone(cohort["identity_increments"]["comparisons"]["receiver_given_qb"])
+
     def setUp(self):
         self.train = passing_frame(dict(season=2022, qb_id="q1", receiver_id="r1"),
                                    dict(season=2022, qb_id="q2", receiver_id="r2"))

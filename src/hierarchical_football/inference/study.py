@@ -10,7 +10,7 @@ from .audits import pairing_support, table_coverage
 from .baselines import PASSING_CONTEXTS, fit_completion
 from .contracts import PASSING_CONTRACT, validate
 from .design import bootstrap_contrast
-from .evaluation import chronological_split, clustered_comparison, completion_metrics, passing_transfer, row_losses
+from .evaluation import chronological_split, clustered_comparison, completion_metrics, identity_increments, passing_transfer, row_losses
 from .partial_pooling import fit_block_completion, select_passing_penalties
 
 
@@ -124,6 +124,9 @@ def run_passing_study(table, *, spec, contrasts=(), contrast_draws=200):
                       "models": {name: fitted.report() for name, fitted in models.items()},
                       "metrics": {name: completion_metrics(truth, values) for name, values in probabilities.items()},
                       "comparison": comparison, "transfer": transfer,
+                      "identity_increments": identity_increments(
+                          losses, clusters=holdout["game_id"].to_list(), draws=spec.draws,
+                          seed=spec.seed, level=spec.level),
                       "pairing_support": pairing_support(train), "contrasts": contrast_reports})
     return {"report": {"schema_version": 1, "purpose": spec.purpose, "specification": asdict(spec),
                        "untouched_holdout_verified": False, "selection": selection,

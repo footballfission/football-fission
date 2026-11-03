@@ -702,3 +702,18 @@ knots, selecting features from outcomes, or conflating opponent indicators with 
 quality. The declared context name travels with the design and fit; later rows reuse its
 training levels and scaling. Linear and expanded behavior remain compatible with earlier
 runs. Component loss differences describe refitted models, not causal credit for a feature.
+
+## Identity increments against the other player block
+
+A receiver increment compares the joint QB/receiver fit with QB-only, while a QB increment
+compares joint with receiver-only. Each uses paired loss differences on the same plays,
+resampling whole games with the protocol's seed, interval level and draw count. Reports
+retain both references explicitly. These diagnostics are emitted overall and by natural
+partnership cohort, rather than inferring receiver transfer from joint-versus-context gains.
+Empty cohorts have no diagnostic; a single game has no interval. All three prediction
+models must exist before a transfer cohort can report this comparison.
+
+The ablations keep jointly selected penalties. They test predictive increments of refitted
+blocks under that specification, not uniquely identified receiver skill, causal credit,
+or performance of separately optimized alternatives. Multiple cohort intervals remain
+development diagnostics and do not constitute independent confirmatory tests.

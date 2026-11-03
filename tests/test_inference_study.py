@@ -36,6 +36,8 @@ class PassingStudy(unittest.TestCase):
             self.assertEqual(set(fold["models"]), {"linear_context", "context", "qb", "receiver", "both"})
             self.assertEqual(sum(c["rows"] for c in fold["transfer"]["cohorts"].values()), 100)
             self.assertIn("both", fold["comparison"]["differences"])
+            self.assertEqual(fold["identity_increments"]["rows"], 100)
+            self.assertIn("receiver_given_qb", fold["identity_increments"]["comparisons"])
             self.assertTrue(fold["models"]["both"]["in_sample"]["converged"])
             self.assertEqual(set(fold["models"]["qb"]["identity_levels"]), {"qb_id"})
             self.assertEqual(set(fold["models"]["receiver"]["identity_levels"]), {"receiver_id"})
