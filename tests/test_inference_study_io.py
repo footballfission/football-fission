@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -14,6 +15,15 @@ from tests.test_inference_study import study_table
 
 
 class StudyFiles(unittest.TestCase):
+    def test_manifest_records_only_declared_numerical_thread_environment(self):
+        with patch.dict(os.environ, {"OPENBLAS_NUM_THREADS": "2", "OMP_NUM_THREADS": "3",
+                                     "UNRELATED_STUDY_SETTING": "unrecorded"}):
+            manifest = self.run_study()
+        settings = manifest["environment"]["thread_environment"]
+        self.assertEqual(settings["OPENBLAS_NUM_THREADS"], "2")
+        self.assertEqual(settings["OMP_NUM_THREADS"], "3")
+        self.assertNotIn("UNRELATED_STUDY_SETTING", settings)
+
     def setUp(self):
         self.workspace = tempfile.TemporaryDirectory(prefix="passing_study_")
         self.addCleanup(self.workspace.cleanup)

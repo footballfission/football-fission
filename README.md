@@ -329,3 +329,13 @@ Selection still fits 2022 and scores 2023 before expanding evaluations in 2024 a
 No diagnostic or outer loss chooses the context or prior.
 
 Run the focused checks with `python -m unittest tests.test_inference_study tests.test_inference_contrast_uncertainty -q`.
+
+## Numerical runtime provenance
+
+Study manifests record an allowlist of numerical thread environment settings alongside
+package versions. `OPENBLAS_NUM_THREADS`, `OMP_NUM_THREADS`, `MKL_NUM_THREADS`,
+`BLIS_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`, and `NUMEXPR_NUM_THREADS` are captured at
+run start; unset values are null. These are requested environment settings, not verified
+active thread-pool sizes. Other environment variables are not copied into the manifest.
+
+Run the focused checks with `python -m unittest tests.test_inference_study_io -q`.

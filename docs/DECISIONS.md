@@ -780,3 +780,12 @@ remain 10, 100 and 1000; opponent penalties are 1, 100 and 10000, giving 81 dist
 candidates. This is a declared development comparison prompted by inspected earlier
 results, not a prospective confirmatory study. All outer player increments remain
 conditional on the one jointly selected specification and its static opponent model.
+
+## Numerical thread provenance
+
+The offline runner records a fixed allowlist of numerical thread environment settings
+at the start of fitting. These settings can affect execution cost and floating-point
+reduction order, so package versions alone do not describe the numerical invocation.
+Unset settings remain null. The runner does not alter them or inspect unrelated environment
+variables. Recorded requests do not establish active library pool sizes when a caller
+has already imported numerical libraries, and they do not promise bitwise reproducibility.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.metadata
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -12,6 +13,9 @@ import polars as pl
 
 from ..data.store import atomic_json, content_hash, utc_now, write_frame
 from .study import PassingStudySpec, run_passing_study
+
+THREAD_ENVIRONMENT_KEYS = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
+                           "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS")
 
 
 def _unique_object(pairs):
@@ -95,6 +99,7 @@ def run_study_file(input_path, specification_path, output_root):
     output_root.mkdir(parents=True, exist_ok=False)
     try:
         source_hashes, input_hash = _source_hashes(), content_hash(input_path)
+        thread_environment = {key: os.environ.get(key) for key in THREAD_ENVIRONMENT_KEYS}
         spec_hash = hashlib.sha256(raw).hexdigest()
         started_at, revision = utc_now(), _revision()
         (output_root / "specification.json").write_bytes(raw)
@@ -113,7 +118,8 @@ def run_study_file(input_path, specification_path, output_root):
                     "completed_at": utc_now(), "input": {"path": str(input_path.resolve()), "sha256": input_hash},
                     "specification_sha256": spec_hash, "code_revision": revision,
                     "source_hashes": source_hashes, "outputs": outputs,
-                    "environment": {"python": platform.python_version(), "packages": {
+                    "environment": {"python": platform.python_version(),
+                                    "thread_environment": thread_environment, "packages": {
                         package: importlib.metadata.version(package)
                         for package in ("numpy", "scipy", "polars", "scikit-learn")}}}
         atomic_json(output_root / "manifest.json", manifest)
