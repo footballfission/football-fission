@@ -1143,3 +1143,21 @@ individual usage adds value beyond broad role rates; it is not causal target-ear
 or a learned substitution response. Current progress documentation now distinguishes these
 implemented conditional baselines from still-unimplemented operational availability and
 joint downstream forecasts.
+
+## Proper conditional target-allocation scoring
+
+Allocation scores compare the exact observed candidate-plus-OTHER count vector with its
+multinomial probability conditional on the team target total. The count coefficient is
+included. Team and candidate identity/index key sets must match exactly in both directions;
+observed and predicted row orders are independent. Counts, probabilities and candidate
+summaries are validated before scoring. Per-team-game negative log likelihood and total
+target log-loss sums support mean-game and target-weighted summaries with explicit units.
+
+A zero-count category at zero probability contributes zero, and a zero-target pool has
+zero count loss. Positive observed count at zero probability has infinite proper loss:
+no epsilon clipping or exclusion of failed games is allowed. Infinite scores remain in
+the frame; report aggregates become null with explicit infinite_loss status and affected
+game count, keeping strict JSON valid without reporting a finite-only average. These
+likelihoods evaluate supplied conditional allocation distributions, not team volume,
+availability, latent skill or causal substitution. Parameter or calibration uncertainty
+requires separate evidence.

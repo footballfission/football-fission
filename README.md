@@ -700,3 +700,20 @@ allocation reference. It uses the same fitted position priors, OTHER rate and su
 roster, while ignoring individual historical counts. The default retains player history.
 Returned predictions record the flag. This ablation can measure player-history predictive
 increments without changing training data, roster eligibility or broad role controls.
+
+## Conditional allocation log scores
+
+`allocation_evaluation.allocation_log_scores(prediction, observed_panel, observed_candidates)`
+aligns exact team/candidate identities with observed counts, then scores full multinomial
+count mass including OTHER. It returns one team-game score row, mean negative log
+likelihood per team-game and target-weighted log loss. Input probabilities/counts and
+stored conservation summaries are validated; arbitrary row order cannot change alignment.
+
+Zero-target pools have zero count loss. An observed positive count at probability zero
+has infinite proper loss, retained explicitly in the score frame. Report aggregates become
+null with `status="infinite_loss"` and a count of affected games. No probabilities are
+clipped and no failed games are dropped. Strict JSON reports therefore stay finite without
+misrepresenting an impossible prediction. These scores condition on observed team totals
+and supplied rosters; they do not evaluate volume or pregame availability forecasts.
+
+Run `python -m unittest tests.test_inference_allocation_evaluation -q`.

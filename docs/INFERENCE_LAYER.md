@@ -641,3 +641,13 @@ The fitted share predictor's `include_player_history=False` option retains its p
 and OTHER rates while removing the individual historical contribution. This is a matched
 role-only reference for future chronological allocation evaluation, with unchanged fitted
 population and roster assumptions. Default predictions continue to use individual history.
+
+## Conditional allocation likelihood evaluation
+
+`allocation_evaluation.allocation_log_scores` checks exact prediction/observation keys
+and scores the candidate/OTHER multinomial count vector conditional on each observed team
+total. It returns keyed team-game likelihood scores and game-mean/target-weighted summaries.
+Impossible positive-count/zero-probability events retain infinite scores and force explicit
+infinite-loss/null aggregate reporting. Failed cases are never clipped or dropped. These
+are conditional allocation diagnostics, not volume or availability forecasting evidence.
+Run `python -m unittest tests.test_inference_allocation_evaluation -q`.
