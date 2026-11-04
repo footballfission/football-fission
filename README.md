@@ -557,3 +557,19 @@ unverified, and reports original-design estimability on the requested scale plus
 window's interval status and refit context-failure count. Probability checks require arm
 predictor estimability; log-odds checks use the average linear contrast. An `ok` interval
 status can coexist with prior dependence or context loss. No estimates or intervals change.
+
+## Audited passing situation join
+
+`situation.attach_passing_situation(targets, pbp)` returns the same canonical target rows,
+order, original columns and outcomes with shotgun, no-huddle, start-of-play score
+differential and game seconds remaining attached. It also returns counts and missing
+context. Source keys must be unique and integral, and every target must match the source
+season and offense. Existing situation columns cannot be overwritten. Binary flags are
+nullable Int8; score and clock are nullable Float64. Nulls are preserved; nonfinite observed
+values, invalid flags and negative clocks fail. Only the declared fields are selected.
+
+Definitions follow [nflfastR](https://nflfastr.com/reference/fast_scraper.html).
+These observed pre-play controls are associations, not causal credit. This join alone
+does not change any existing model or frozen experiment.
+
+Run `python -m unittest tests.test_inference_situation -q`.

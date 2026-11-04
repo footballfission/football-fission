@@ -1004,3 +1004,20 @@ context failures. Log-odds uses its linear-functional check; probability uses th
 rowwise arm check. Bootstrap completion status remains separate. This is a summary of
 existing diagnostics, not a new estimability threshold, interval filter or talent grade.
 Non-estimable reports that return before fitting retain a null summary and no estimates.
+
+## Observed pre-play passing situation
+
+Formation, tempo, score and clock are available in cached play-by-play and can help separate
+observed context from player intercepts. The explicit join selects only shotgun, no_huddle,
+score_differential and game_seconds_remaining, whose definitions were checked against
+https://nflfastr.com/reference/fast_scraper.html on 2026-11-03. In particular the selected
+score differential is at the start of the play. No post-play score, source outcome or
+external model probability is attached.
+
+The join preserves canonical rows, order and outcomes; it does not rebuild the target
+population. Every target requires a unique integral source key and matching season and
+offense. Null covariates remain null and are counted. Observed nonfinite covariates,
+nonbinary formation/tempo flags, negative clock values and overwrites are rejected.
+Flags are nullable Int8 and continuous fields Float64. Extra source rows do not alter the
+target population. Existing preparation and context variants remain unchanged at this
+step. Better controls do not establish causal identification or resolve shrinkage bias.
