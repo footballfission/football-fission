@@ -617,3 +617,18 @@ It models associations conditional on a target, not causal formation effects or 
 skill uncertainty. No predictive improvement on NFL data is claimed from its synthetic test.
 
 Run `python -m unittest tests.test_inference_situation_model tests.test_inference_study -q`.
+
+## Frozen passing situation evaluation
+
+`examples/passing_situation_reference_study.json` and
+`examples/passing_situation_study.json` declare matched development studies on the same
+`data/processed/inference_situation/passing_targets.parquet` input. They differ only in
+expanded versus expanded_situation context. Player and opponent penalties are fixed at
+100, context penalty at 1, with 2022 training, 2023 inner scoring and expanding 2024/2025
+folds. No priors are retuned. Both use 2,000 game-bootstrap draws, seed 0 and 95% intervals.
+
+The predeclared primary comparison is new-minus-reference joint-model completion log
+loss; negative favors added situation. Context-only and identity-transfer differences
+are secondary diagnostics. The target population is unchanged. These previously inspected
+seasons are development evidence, with no untouched-holdout or player-skill claim.
+Run each with `study-passing --input ... --spec ... --output-root <fresh-directory>`.

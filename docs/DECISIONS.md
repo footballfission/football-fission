@@ -1059,3 +1059,15 @@ protocols and model definitions remain unchanged. Added pre-play controls can he
 observed target difficulty, but their coefficients are conditional associations. A known
 synthetic formation signal verifies plumbing; improvement or portable player credit must
 be assessed separately on declared chronological development folds.
+
+## Matched situation development protocols
+
+The first real-data situation check fixes both identity penalties and the opponent penalty
+at the prior shrinkage study's selected value 100, with context penalty 1. Its paired
+protocols differ only between expanded and expanded_situation and use the same enriched
+target table, training/selection seasons and expanding development folds. The one-candidate
+inner score is retained for workflow consistency, not a new penalty search. Primary
+comparison is added-situation minus reference joint-model log loss on exactly matched
+plays, with paired whole-game bootstrap uncertainty. Context-only and transfer-cohort
+differences are secondary. Protocols, populations and priors are frozen before reading
+these results. Prior development inspection of 2024/2025 precludes an untouched claim.

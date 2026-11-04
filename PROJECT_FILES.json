@@ -34,6 +34,8 @@
     "examples/passing_player_comparison.json",
     "examples/passing_player_context_comparison.json",
     "examples/passing_shrinkage_study.json",
+    "examples/passing_situation_reference_study.json",
+    "examples/passing_situation_study.json",
     "examples/passing_study.json",
     "examples/passing_unsupported_comparison.json",
     "examples/predict_wr.py",
