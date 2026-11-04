@@ -69,7 +69,14 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `splits.py` | The week cutoff that separates training team games from the weeks a model predicts | `tests.test_inference_splits` |
 | `volume.py` | A pooled count law and a team-history reference for team target volume | `tests.test_inference_volume` |
 | `team_effect.py` | A per-team deviation on the log mean, shrunk by a penalty chosen on an inner split | `tests.test_inference_team_effect` |
-| `__main__.py` | The `prepare` command over the local cache | `tests.test_inference_cli` |
+| `situation.py` | Audited pre-play formation, tempo, score and clock join | `tests.test_inference_situation` |
+| `context_support.py` | Shared model-category and numeric-range reference coverage | `tests.test_inference_context_support` |
+| `estimability.py` | Data-only row-space checks for requested contrast arms | `tests.test_inference_estimability` |
+| `comparisons.py` | Supported retrospective player contrasts across historical windows | `tests.test_inference_comparisons` |
+| `simulation.py` | Synthetic passing scenarios with exact declared contrasts | `tests.test_inference_simulation` |
+| `calibration.py` | Repeated known-truth contrast bias, coverage and availability | `tests.test_inference_calibration` |
+| `study.py` / `study_io.py` | Chronological development studies and hashed offline bundles | `tests.test_inference_study`, `tests.test_inference_study_io` |
+| `__main__.py` | Offline preparation, study, comparison and synthetic calibration commands | `tests.test_inference_cli`, `tests.test_inference_calibration_io` |
 
 Every module is offline. They read the cache under `data/raw`, write under the output root they are
 given, and never start a download; a missing partition raises instead.
@@ -432,6 +439,10 @@ Run the focused checks with `python -m unittest tests.test_inference_design -q`.
 | [PASSING_CONTEXT_RESULTS.md](PASSING_CONTEXT_RESULTS.md) | Context-component diagnostics plus standard QB/receiver conditional increments, with the original predictions preserved |
 | [PASSING_SHRINKAGE_RESULTS.md](PASSING_SHRINKAGE_RESULTS.md) | Earlier-season selection over simpler contexts and independent opponent priors, with later-season player increments |
 | [PASSING_PLAYER_COMPARISON.md](PASSING_PLAYER_COMPARISON.md) | Team-scoped retrospective player contrasts, shared population retention, prior sensitivity and a non-estimable example |
+| [PASSING_CONTEXT_SUPPORT_RESULTS.md](PASSING_CONTEXT_SUPPORT_RESULTS.md) | Sensitivity to observed model-context coverage and its loss during resampling |
+| [PASSING_CALIBRATION_RESULTS.md](PASSING_CALIBRATION_RESULTS.md) | Known-truth shrinkage bias and conditional interval coverage stress tests |
+| [PASSING_ESTIMABILITY_RESULTS.md](PASSING_ESTIMABILITY_RESULTS.md) | Original-design log-odds and probability-arm estimability on the frozen Philadelphia references |
+| [PASSING_SITUATION_RESULTS.md](PASSING_SITUATION_RESULTS.md) | Matched development prediction comparison from adding observed pre-play formation, tempo, score and clock |
 
 These are evidence from local runs rather than test expectations. Each names its inputs by hash, and a
 refresh of the cache can move the numbers.

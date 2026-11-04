@@ -18,6 +18,12 @@ Hierarchical parametric NFL models for simulating player statistics and fantasy-
 
 The package contains model source code and supporting utilities. Train the models on prepared historical panels before generating forecasts.
 
+The current play-level work adds [observed situation context](docs/PASSING_SITUATION_RESULTS.md)
+with small completion-loss gains, strongest in the 2024 development fold. It also includes
+[known-truth interval calibration](docs/PASSING_CALIBRATION_RESULTS.md) and
+[player-contrast estimability audits](docs/PASSING_ESTIMABILITY_RESULTS.md). These distinguish
+conditional estimator uncertainty from uncertainty about player skill.
+
 ## Install
 
 From this folder, use either:
