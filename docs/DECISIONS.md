@@ -1033,3 +1033,12 @@ enabled extraction records join/missing-context diagnostics. Missing requested s
 columns fail instead of generating a silently empty situation block. Defaults preserve
 the earlier passing columns; new research runs use a separate output directory rather
 than overwriting the frozen canonical input behind existing evidence.
+
+## Shared completion context source definition
+
+Completion design and marginal domain support now read one raw-input schema for each
+context. Fixed hinge columns remain design transformations of air_yards; the coverage
+screen checks their source values. This prerequisite preserves the original eight
+contexts' source columns, design ordering and support reports. It introduces no fitted
+feature or changed prediction. Adding a future context must extend this common schema,
+so the design and its reference coverage cannot silently diverge.

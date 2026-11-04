@@ -278,6 +278,19 @@ def _composed(composites, support):
     return composed
 
 
+def passing_context_sources(context):
+    """Raw continuous and categorical inputs shared by designs and domain audits.
+
+    Fixed depth hinges are transformations of air_yards, already in continuous.
+    """
+    if context not in PASSING_CONTEXT_COMPONENTS:
+        raise ValueError(f'unknown passing context {context!r}')
+    components = PASSING_CONTEXT_COMPONENTS[context]
+    return {'continuous': PASSING_CONTINUOUS,
+            'categorical': (PASSING_CATEGORICAL + (("position",) if "position" in components else ()) +
+                            (("defteam",) if "opponent" in components else ()))}
+
+
 def passing_design(table, *, identities=(), composites=None, reference=None, context="linear"):
     """Design for the completion baselines on a canonical `passing_targets` table.
 
@@ -297,9 +310,8 @@ def passing_design(table, *, identities=(), composites=None, reference=None, con
     components = PASSING_CONTEXT_COMPONENTS[context]
     hinges = ({f"air_yards_above_{knot:g}": ("air_yards", knot) for knot in DEPTH_KNOTS}
               if "depth" in components else {})
-    categorical = (PASSING_CATEGORICAL + (("position",) if "position" in components else ()) +
-                   (("defteam",) if "opponent" in components else ()))
-    design = build_design(table, continuous=PASSING_CONTINUOUS + tuple(hinges), categorical=categorical,
+    sources = passing_context_sources(context)
+    design = build_design(table, continuous=sources['continuous'] + tuple(hinges), categorical=sources['categorical'],
                           composites=composites, identities=identities, reference=reference,
                           name="passing", hinges=hinges)
     if reference is None:

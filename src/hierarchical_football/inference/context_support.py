@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
-from .baselines import PASSING_CATEGORICAL, PASSING_CONTEXT_COMPONENTS, PASSING_CONTINUOUS
+from .baselines import PASSING_CONTEXT_COMPONENTS, passing_context_sources
 from .contracts import PASSING_CONTRACT, column_labels, validate
 
 
@@ -18,9 +18,7 @@ def model_context_population(windows, population, *, context="expanded"):
     if not windows or context not in PASSING_CONTEXT_COMPONENTS:
         raise ValueError("model context support needs fitting windows and a declared passing context")
     validate(population, PASSING_CONTRACT)
-    components = PASSING_CONTEXT_COMPONENTS[context]
-    categorical = (PASSING_CATEGORICAL + (("position",) if "position" in components else ()) +
-                   (("defteam",) if "opponent" in components else ()))
+    sources = passing_context_sources(context)
     keep = np.ones(population.height, dtype=bool)
     reports = {}
     for name, table in windows.items():
@@ -29,13 +27,13 @@ def model_context_population(windows, population, *, context="expanded"):
             raise ValueError("model context support cannot derive a domain from an empty fitting window")
         within = np.ones(population.height, dtype=bool)
         unseen, outside, nonfinite, bounds, levels = {}, {}, {}, {}, {}
-        for column in categorical:
+        for column in sources['categorical']:
             observed = set(column_labels(table, column))
             supported = np.array([value in observed for value in column_labels(population, column)], dtype=bool)
             unseen[column] = int((~supported).sum())
             levels[column] = sorted(observed)
             within &= supported
-        for column in PASSING_CONTINUOUS:
+        for column in sources['continuous']:
             observed = table[column].cast(pl.Float64).to_numpy()
             observed = observed[np.isfinite(observed)]
             values = population[column].cast(pl.Float64).to_numpy()

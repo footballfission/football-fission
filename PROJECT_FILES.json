@@ -94,6 +94,7 @@
     "tests/test_inference_comparison_io.py",
     "tests/test_inference_comparisons.py",
     "tests/test_inference_context.py",
+    "tests/test_inference_context_sources.py",
     "tests/test_inference_context_support.py",
     "tests/test_inference_contracts.py",
     "tests/test_inference_contrast_uncertainty.py",

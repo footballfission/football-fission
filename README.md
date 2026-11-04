@@ -590,3 +590,13 @@ situation counts. Rushing columns stay the same. Requested source fields must ex
 pass the audited join. Use a separate output directory to retain earlier frozen datasets.
 
 Run `python -m unittest tests.test_inference_situation_preparation tests.test_prepare_script -q`.
+
+## Passing context source schema
+
+`baselines.passing_context_sources(context)` defines raw continuous and categorical
+inputs for both completion designs and model-context domain audits. Fixed depth hinges
+reuse the air-yards source. This shared definition preserves all existing context column
+orders and coverage behavior while preventing future modeled inputs from being omitted
+from the reference screen.
+
+Run `python -m unittest tests.test_inference_context_sources -q`.
