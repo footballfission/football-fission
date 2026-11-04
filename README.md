@@ -454,3 +454,19 @@ and game IDs are synthetic. Independent Bernoulli outcomes have no latent game e
 these controlled scenarios do not validate NFL talent estimates.
 
 Run `python -m unittest tests.test_inference_simulation -q`.
+
+## Conditional contrast calibration
+
+`calibration.run_calibration(CalibrationSpec(...))` repeats known-truth synthetic
+passing datasets across declared scenarios and fixed player penalties. Each dataset and
+game-resampling seed is shared across penalties. The result includes a trial table,
+exact DGP contrasts, point-estimate bias/RMSE, interval availability, conditional coverage,
+mean width and Wilson 95% bounds for Monte Carlo coverage uncertainty. Both identity
+blocks receive the declared penalty; the linear context penalty is 1 and Q stays fixed.
+
+Unavailable intervals and single-outcome trials stay in the denominator. Coverage among
+available intervals and the share of all trials returning an interval containing truth
+are separate fields. Missing point estimates also remain visible. Neither nominal interval
+level nor a favorable toy result establishes real-player uncertainty calibration.
+
+Run `python -m unittest tests.test_inference_calibration -q`.

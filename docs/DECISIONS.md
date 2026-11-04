@@ -908,3 +908,23 @@ assign depth 6 exclusively to r1 and 9 exclusively to r2; both occupy the same c
 This distinguishes graph connectivity and marginal coverage from structural separation
 of identity and continuous context. The truth is declared even where the observed design
 cannot identify it. Simulation is a stress test, not evidence of NFL interval calibration.
+
+## Conditional contrast Monte Carlo calibration
+
+Calibration measures the existing game-bootstrap estimator against exact synthetic DGP
+contrasts, rather than treating reproducible real-player intervals as evidence of coverage.
+Protocols declare repetitions, game count, per-cell repetitions, bootstrap draws, priors,
+scenarios, seed and nominal level. Dataset and bootstrap seeds are paired across player
+penalties. Both identity blocks use each declared penalty; context remains linear with
+penalty 1. Scenario data generation is independent across Monte Carlo trials. Q and priors
+are fixed within each interval; no selection uncertainty is simulated.
+
+Every dataset/penalty trial is retained, including disconnected designs, incomplete
+resamples and single-outcome datasets. Coverage is explicitly conditional on an interval
+being available; interval availability and covered intervals divided by all trials are
+also reported. Point bias and RMSE use available point estimates with their count. Wilson
+95% bounds measure finite Monte Carlo uncertainty about coverage, independent of the
+chosen player interval level. A small replication count cannot establish calibration.
+The returned trial frame retains seeds, truth, estimates, interval endpoints, coverage,
+status and context-failure counts for auditing. Unexpected errors propagate. Reports are
+marked synthetic and never verify real-player coverage or causal identification.
