@@ -754,3 +754,19 @@ with the Python allocation APIs; the exact local runner is retained in its exper
 bundle. It is not a `study-passing` completion protocol. Realized totals and supplied
 rosters make this conditional development evidence, with no volume, availability,
 untouched-holdout or operational forecast certification.
+
+## Overdispersed target allocation sampling
+
+`sample_target_allocation(..., concentration=A)` mixes a Dirichlet share vector with
+parameters `A * mean_share` before each joint multinomial draw. Smaller positive A adds
+more conditional share variation while preserving mean probabilities and exact team totals.
+The default `concentration=None` retains the original multinomial seeded draws exactly.
+Zero-share categories stay structural zero; one-category/empty-roster pools remain exact.
+Returned metadata records the law and concentration, with row-order invariance preserved.
+
+This [Dirichlet-multinomial construction](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.dirichlet_multinomial.html)
+models extra allocation variation. It is not a fitted player-parameter posterior or learned
+availability response. Its concentration must be declared or selected on earlier data,
+and predictive coverage/width must be evaluated. No real-data improvement is claimed here.
+
+Run `python -m unittest tests.test_inference_allocation_dispersion -q`.

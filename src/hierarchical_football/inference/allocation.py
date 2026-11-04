@@ -17,7 +17,16 @@ def _probabilities(values, length, name):
     return result
 
 
-def sample_target_allocation(panel, candidates, team_draws, *, shares, other_shares, seed=0):
+def _concentration(value):
+    if value is None:
+        return None
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not np.isfinite(value) or value <= 0):
+        raise ValueError('allocation concentration must be None or finite and positive')
+    return float(value)
+
+
+def sample_target_allocation(panel, candidates, team_draws, *, shares, other_shares, seed=0, concentration=None):
     """Allocate each supplied team/draw total jointly, preserving input row order.
 
     Shares align with candidate rows; OTHER shares align with panel rows. Each
@@ -25,10 +34,12 @@ def sample_target_allocation(panel, candidates, team_draws, *, shares, other_sha
     sampling. Internal key sorting makes seeded results invariant to arbitrary
     input row order. Draw columns retain their supplied identity. A zero-share
     player always gets zero. With no candidates, all probability must be OTHER.
-    No share, availability or volume model is fitted here.
+    Positive concentration mixes Dirichlet shares before multinomial sampling;
+    None preserves fixed shares. No share, availability or volume model is fitted.
     """
     if type(seed) is not int or seed < 0:
         raise ValueError('allocation seed must be a nonnegative integer')
+    concentration = _concentration(concentration)
     require_columns(panel, TEAM_GAME_KEYS, 'allocation team games')
     require_columns(candidates, (*CANDIDATE_KEYS, 'player_id'), 'allocation candidates')
     for frame in (panel, candidates):
@@ -76,12 +87,23 @@ def sample_target_allocation(panel, candidates, team_draws, *, shares, other_sha
         if not np.isclose(total_probability, 1.0, rtol=0, atol=1e-10):
             raise ValueError('allocation candidate and OTHER probabilities must sum to one for each team game')
         p = p / total_probability
-        sampled = rng.multinomial(totals[row], p)
+        if concentration is None or np.count_nonzero(p) == 1:
+            sampled = rng.multinomial(totals[row], p)
+        else:
+            active = np.flatnonzero(p > 0)
+            alpha = concentration * p[active]
+            if np.any(alpha == 0):
+                raise ValueError('allocation concentration underflows positive category support')
+            weights = rng.dirichlet(alpha, size=totals.shape[1])
+            sampled = np.zeros((totals.shape[1], p.size), dtype=np.int64)
+            sampled[:, active] = rng.multinomial(totals[row], weights)
         candidate_samples[members] = sampled[:, :-1].T
         other_samples[row] = sampled[:, -1]
     return {'candidate_samples': candidate_samples, 'other_samples': other_samples,
             'candidate_keys': candidates.select(*CANDIDATE_KEYS, 'player_id'),
             'team_game_keys': panel.select(TEAM_GAME_KEYS), 'seed': seed,
+            'allocation_law': 'multinomial' if concentration is None else 'dirichlet_multinomial',
+            'concentration': concentration,
             'condition': 'supplied_roster_probabilities_and_team_target_draws',
-            'note': 'fixed-share multinomial allocation; no availability, share-parameter or volume '
-                    'uncertainty beyond supplied inputs; no pregame information certification'}
+            'note': 'conditional allocation with declared share variation; no learned availability, '
+                    'share-parameter posterior or extra volume model; no pregame information certification'}

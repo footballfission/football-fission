@@ -663,3 +663,13 @@ reports separate MAE/CRPS and central 50%/90% coverage/width, and returns row sc
 further diagnostics. Empty candidate summaries are null. This explicitly conditional
 evaluation does not measure volume or availability forecast quality or certify nominal
 coverage. Run `python -m unittest tests.test_inference_allocation_sample_evaluation -q`.
+
+## Conditional share variation sampler
+
+`sample_target_allocation(..., concentration=A)` adds Dirichlet-multinomial allocation
+variation with unchanged mean shares, structural zeros and exact per-draw team totals.
+None preserves the original fixed-share multinomial samples, including seed compatibility.
+Positive finite A is reported explicitly. This is declared predictive share variation,
+not a fitted parameter posterior or availability model. Earlier-data concentration selection
+and later likelihood/calibration evaluation remain separate requirements.
+Run `python -m unittest tests.test_inference_allocation_dispersion -q`.

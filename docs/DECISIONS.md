@@ -1195,3 +1195,19 @@ It does not add a new public file workflow. Supplied ACT rosters have no publica
 certification, totals are observed, and these seasons were previously inspected during
 development. Conditional allocation increments cannot establish volume, availability,
 weekly fantasy forecast improvement or causal target-earning skill.
+
+## Declared conditional share variation
+
+The joint sampler accepts a positive finite total concentration A. For each pool/draw,
+positive-probability categories receive a Dirichlet share vector with alpha_i=A*p_i before
+multinomial allocation. Structural zeros are excluded from that draw and remain exactly
+zero. A one-category pool is deterministic. Underflow of positive concentration/category
+support fails explicitly. Existing probability, row/draw identity and conservation checks
+remain, and concentration=None preserves original seeded multinomial samples exactly.
+Returned law/concentration metadata distinguishes the two distributions.
+
+The construction follows the official SciPy Dirichlet-multinomial and NumPy Dirichlet/
+multinomial definitions checked on2026-11-04. Its variation represents a declared random
+allocation propensity, not an inferred skill posterior, health distribution or new volume
+model. Mean shares remain fixed. Concentration fitting and proper likelihood/calibration
+comparison are separate steps; broad intervals alone cannot establish a better model.

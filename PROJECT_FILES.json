@@ -94,6 +94,7 @@
     "tests/test_gain_mixture.py",
     "tests/test_inference_allocation.py",
     "tests/test_inference_allocation_baseline.py",
+    "tests/test_inference_allocation_dispersion.py",
     "tests/test_inference_allocation_evaluation.py",
     "tests/test_inference_allocation_sample_evaluation.py",
     "tests/test_inference_audits.py",
