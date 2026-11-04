@@ -78,7 +78,7 @@ The position classes share a small gain law, `GainMixture` (one copy per positio
 
 ## Research direction and current limits
 
-Start with [TEAM_OPPORTUNITY_PLAN.md](docs/TEAM_OPPORTUNITY_PLAN.md). It proposes a team target pool and roster-wide allocation feeding the existing conditional production stages. Team allocation, weekly availability mixtures, external opportunity injection, and coherent QB/receiver outcomes are future work, not implemented features in this package.
+Start with [TEAM_OPPORTUNITY_PLAN.md](docs/TEAM_OPPORTUNITY_PLAN.md). It proposes a team target pool and roster-wide allocation feeding the existing conditional production stages. Conditional allocation now has a conserving joint sampler and a position-pooled proportional baseline, with a matched position-only reference. Learned substitution, weekly availability mixtures, external opportunity injection, and coherent QB/receiver outcomes remain future work.
 
 Current samplers produce player distributions. They do not form a team-constrained or game-wide joint model. Preserve the documented concerns about tail calibration, TE touchdown dependence, QB volume bias, and D/ST tiers. The comparison reports record historical research results. Their benchmark models, evaluation runners, and datasets are not included; the reports are reference material rather than runnable benchmarks.
 
@@ -694,3 +694,9 @@ Run `python -m unittest tests.test_inference_allocation_baseline -q`.
 Allocation fallback diagnostics distinguish `unseen_players` (distinct player IDs) from
 `unseen_player_rows` (candidate-game rows), alongside `unseen_position_rows`. Repeated future
 appearances by one new player count once as an identity. This does not change probabilities.
+
+`fitted.predict(..., include_player_history=False)` supplies a matched position-only
+allocation reference. It uses the same fitted position priors, OTHER rate and supplied
+roster, while ignoring individual historical counts. The default retains player history.
+Returned predictions record the flag. This ablation can measure player-history predictive
+increments without changing training data, roster eligibility or broad role controls.

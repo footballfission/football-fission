@@ -1131,3 +1131,15 @@ which could be mistaken for unique players. The diagnostic now reports distinct 
 under unseen_players and preserves repeated appearances under unseen_player_rows. Position
 fallback remains explicitly row-based. Fitted rates and probabilities are unchanged; this
 fix prevents future research reports from conflating player identities with exposures.
+
+## Matched player-history allocation ablation
+
+The proportional baseline can predict from the same fitted position means and OTHER rate
+with include_player_history=False, setting only the individual target/exposure contribution
+to its prior. Default behavior keeps player history. Probabilities, keys and returned flags
+make the matched reference explicit. Training population, position pooling and supplied
+roster stay the same. The resulting predictive increment can test whether historical
+individual usage adds value beyond broad role rates; it is not causal target-earning credit
+or a learned substitution response. Current progress documentation now distinguishes these
+implemented conditional baselines from still-unimplemented operational availability and
+joint downstream forecasts.

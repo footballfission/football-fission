@@ -69,6 +69,8 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `splits.py` | The week cutoff that separates training team games from the weeks a model predicts | `tests.test_inference_splits` |
 | `volume.py` | A pooled count law and a team-history reference for team target volume | `tests.test_inference_volume` |
 | `team_effect.py` | A per-team deviation on the log mean, shrunk by a penalty chosen on an inner split | `tests.test_inference_team_effect` |
+| `allocation.py` | Conserving joint allocation of supplied team target draws | `tests.test_inference_allocation` |
+| `allocation_baseline.py` | Position-pooled proportional shares and matched position-only reference | `tests.test_inference_allocation_baseline` |
 | `situation.py` | Audited pre-play formation, tempo, score and clock join | `tests.test_inference_situation` |
 | `context_support.py` | Shared model-category and numeric-range reference coverage | `tests.test_inference_context_support` |
 | `estimability.py` | Data-only row-space checks for requested contrast arms | `tests.test_inference_estimability` |
@@ -460,8 +462,10 @@ refresh of the cache can move the numbers.
   penalties and Q, plus separate penalty sensitivity; these are not skill or identification intervals.
   The layer never turns a term into a ranking. The team-game panel that the opportunity
   models need is built and checked for conservation, and the pooled, team-history, and team-effect volume
-  models are fitted and scored on it, but no allocation model is fitted yet and the team effect is not
-  promoted: it loses one season and wins the next by a twentieth of a CRPS point.
+  models are fitted and scored on it. Conditional allocation now has a joint sampler and a fitted
+  proportional baseline with a position-only reference; its predictive value has not been evaluated.
+  Learned substitution remains future work. The team effect is not promoted: it loses one season
+  and wins the next by a twentieth of a CRPS point.
 - No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency.
   Passing studies now have a CLI and frozen JSON specifications. Earlier records in `docs/`
   were produced by scratch drivers; new runs can use the workflow below.
@@ -632,3 +636,8 @@ Removing a candidate implements proportional redistribution. This is a fixed-sha
 conditional baseline, with no learned availability/substitution response or certified
 pregame roster cutoff. It is not yet a demonstrated forecasting improvement.
 Run `python -m unittest tests.test_inference_allocation_baseline -q`.
+
+The fitted share predictor's `include_player_history=False` option retains its position
+and OTHER rates while removing the individual historical contribution. This is a matched
+role-only reference for future chronological allocation evaluation, with unchanged fitted
+population and roster assumptions. Default predictions continue to use individual history.

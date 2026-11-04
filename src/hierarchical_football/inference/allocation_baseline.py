@@ -68,8 +68,10 @@ class FittedProportionalAllocation:
     training_games: frozenset
     training_summary: dict
 
-    def predict(self, panel, candidates):
+    def predict(self, panel, candidates, *, include_player_history=True):
         """Normalize historical rates over the supplied future roster plus OTHER."""
+        if type(include_player_history) is not bool:
+            raise ValueError('include_player_history must be boolean')
         if (set(panel.columns) | set(candidates.columns)) & set(LABEL_COLUMNS):
             raise ValueError('allocation baseline prediction inputs must be label-free')
         _roster_keys(panel, candidates)
@@ -83,7 +85,8 @@ class FittedProportionalAllocation:
         unseen_players = set()
         for game, team, player, position in candidates.select(*TEAM_GAME_KEYS, 'player_id', 'position').iter_rows():
             prior = self.position_shares.get(position, self.global_share)
-            targets, exposure = self.player_counts.get(player, (0.0, 0.0))
+            targets, exposure = (self.player_counts.get(player, (0.0, 0.0))
+                                 if include_player_history else (0.0, 0.0))
             rates.append((targets + self.prior_exposure * prior) / (exposure + self.prior_exposure))
             memberships.append(pools[(game, team)])
             pool_rates[memberships[-1]].append(rates[-1])
@@ -101,6 +104,7 @@ class FittedProportionalAllocation:
                 'team_game_keys': panel.select(TEAM_GAME_KEYS),
                 'unseen_players': len(unseen_players), 'unseen_player_rows': unseen_player_rows,
                 'unseen_position_rows': unseen_positions,
+                'include_player_history': include_player_history,
                 'condition': 'supplied_roster_with_training_only_target_exposure',
                 'note': 'proportional redistribution baseline; no learned availability or substitution '
                         'response; weekly ACT status is not pregame timestamp certification'}

@@ -60,6 +60,20 @@ class ProportionalAllocation(unittest.TestCase):
         empty = fit.predict(panel, players.head(0))
         np.testing.assert_array_equal(empty['other_shares'], [1.0])
 
+    def test_position_reference_uses_same_training_priors_and_roster_without_player_history(self):
+        fit = self.fit(prior_exposure=10)
+        panel, players = prediction()
+        players = players.with_columns(pl.lit('WR').alias('position'))
+        history = fit.predict(panel, players)
+        reference = fit.predict(panel, players, include_player_history=False)
+        self.assertGreater(history['shares'][0], history['shares'][2])
+        np.testing.assert_array_equal(reference['shares'], np.repeat(reference['shares'][0], 3))
+        self.assertFalse(reference['include_player_history'])
+        self.assertTrue(reference['candidate_keys'].equals(history['candidate_keys']))
+        self.assertAlmostEqual(reference['other_shares'][0] + reference['shares'].sum(), 1)
+        with self.assertRaises(ValueError):
+            fit.predict(panel, players, include_player_history=0)
+
     def test_repeated_unseen_player_rows_do_not_inflate_identity_count(self):
         panel, players = prediction()
         panel = pl.concat([panel, panel.with_columns(pl.lit('g4').alias('game_id'), pl.lit(4).alias('week'))])
