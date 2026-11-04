@@ -994,3 +994,13 @@ Single-outcome datasets cannot supply a fitted audit through this workflow and r
 not_evaluated, never an implicit pass. Existing frozen evidence is not retroactively
 rewritten. This diagnostic addition does not change random seeds, fits or uncertainty
 calculations and does not transform conditional intervals into parameter intervals.
+
+## Historical comparison summary interpretation
+
+Direction consistency is not sufficient to interpret a historical contrast. The summary
+now exposes the conditional estimator interval target, an explicit false skill-coverage
+verification flag, and per-window requested-scale structural estimability and resampling
+context failures. Log-odds uses its linear-functional check; probability uses the sufficient
+rowwise arm check. Bootstrap completion status remains separate. This is a summary of
+existing diagnostics, not a new estimability threshold, interval filter or talent grade.
+Non-estimable reports that return before fitting retain a null summary and no estimates.

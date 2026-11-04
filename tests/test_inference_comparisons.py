@@ -60,10 +60,29 @@ class TemporalComparisons(unittest.TestCase):
         self.assertFalse(report["forecast_evaluation"])
         self.assertEqual(result["reference_population"].height, 480)
         self.assertTrue(report["summary"]["point_direction_consistent"])
+        self.assertEqual(report['summary']['uncertainty']['interval_target'], 'conditional_regularized_estimator')
+        self.assertFalse(report['summary']['uncertainty']['skill_interval_coverage_verified'])
+        self.assertTrue(report['summary']['uncertainty']['all_original_requested_scale_estimable'])
         for window in report["windows"]:
             self.assertGreater(window["bootstrap"]["contrast"]["difference"], 0.4)
             self.assertEqual(len(window["sensitivity"]["fits"]), 4)
             self.assertTrue(window["sensitivity"]["complete"])
+
+    def test_summary_uses_requested_scale_and_keeps_completion_separate_from_estimability(self):
+        _, run = self.api()
+        table = comparison_targets().with_columns(
+            pl.when((pl.col('season') == 2022) & (pl.col('play_id') % 2 == 0))
+            .then(pl.lit('D2')).otherwise(pl.lit('D1')).alias('defteam'))
+        for scale, expected in (('probability', False), ('log_odds', True)):
+            report = run(table, spec=self.spec(context='expanded', opponent_penalty=100,
+                                               scale=scale))['report']
+            self.assertEqual(report['status'], 'ok')
+            uncertainty = report['summary']['uncertainty']
+            self.assertEqual(uncertainty['all_original_requested_scale_estimable'], expected)
+            self.assertEqual(uncertainty['windows']['2024']['requested_scale_estimable'], expected)
+            self.assertEqual(uncertainty['windows']['2024']['context_failure_draws'], 20)
+            self.assertEqual(uncertainty['windows']['2024']['evaluated_draws'], 20)
+            self.assertEqual(uncertainty['windows']['2024']['interval_status'], 'ok')
 
     def test_reversing_the_players_reverses_the_contrast_on_identical_Q(self):
         _, run = self.api()

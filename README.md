@@ -548,3 +548,12 @@ finds the later coarse probability arms prior dependent on 76 reference rows, wh
 the stricter Q passes both original-window arm checks. The log-odds contrast passes
 in both cases. Passing structural checks does not remove shrinkage bias or establish
 skill-interval coverage.
+
+## Comparison interpretation summary
+
+Historical comparison summaries place `uncertainty` beside descriptive direction checks.
+It declares the conditional regularized-estimator interval target, leaves skill coverage
+unverified, and reports original-design estimability on the requested scale plus each
+window's interval status and refit context-failure count. Probability checks require arm
+predictor estimability; log-odds checks use the average linear contrast. An `ok` interval
+status can coexist with prior dependence or context loss. No estimates or intervals change.

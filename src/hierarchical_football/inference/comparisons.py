@@ -155,7 +155,22 @@ def run_passing_comparison(table, *, spec):
                        for window in report["windows"])
     report["status"] = ("ok" if all(window["bootstrap"]["status"] == "ok" and window["sensitivity"]["complete"]
                                      for window in report["windows"]) else "incomplete_estimation")
+    uncertainty_windows = {}
+    for window in report['windows']:
+        bootstrap = window['bootstrap']
+        audit = bootstrap['estimability']
+        estimable = (audit['log_odds_contrast']['estimable'] if spec.scale == 'log_odds'
+                     else audit['probability_arms_estimable'])
+        uncertainty_windows[window['name']] = {
+            'requested_scale_estimable': estimable, 'interval_status': bootstrap['status'],
+            'evaluated_draws': bootstrap['resample_context']['evaluated_draws'],
+            'context_failure_draws': bootstrap['resample_context']['draws_with_failures']}
     report["summary"] = {
+        'uncertainty': {'interval_target': 'conditional_regularized_estimator',
+                        'skill_interval_coverage_verified': False,
+                        'all_original_requested_scale_estimable': all(
+                            row['requested_scale_estimable'] for row in uncertainty_windows.values()),
+                        'windows': uncertainty_windows},
         "point_direction_consistent": ((all(value > 0 for value in differences) or all(value < 0 for value in differences))
                                        if valid_points else None),
         "interval_direction_consistent": ((all(value["lower"] > 0 for value in intervals) or
