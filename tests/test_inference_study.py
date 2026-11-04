@@ -42,17 +42,23 @@ class PassingStudy(unittest.TestCase):
     def test_context_diagnostics_score_all_declared_combinations_without_affecting_selection(self):
         from hierarchical_football.inference.baselines import PASSING_CONTEXTS
         _, run = self.api()
-        table = study_table()
+        table = study_table().with_columns(
+            pl.lit(1).alias('shotgun'), pl.lit(0).alias('no_huddle'),
+            pl.lit(0.0).alias('score_differential'), pl.lit(120.0).alias('game_seconds_remaining'))
         plain = run(table, spec=self.spec(evaluation_seasons=(2024,)))
         result = run(table, spec=self.spec(evaluation_seasons=(2024,), context_diagnostics=PASSING_CONTEXTS))
         self.assertEqual(plain["report"]["selection"], result["report"]["selection"])
         np.testing.assert_array_equal(plain["predictions"]["p_both"], result["predictions"]["p_both"])
         diagnostic = result["report"]["folds"][0]["context_diagnostics"]
         self.assertEqual(set(diagnostic["metrics"]), set(PASSING_CONTEXTS))
-        self.assertEqual(len(diagnostic["component_increments"]), 12)
+        self.assertEqual(len(diagnostic["component_increments"]), 13)
+        situation_increment = [entry for entry in diagnostic['component_increments']
+                               if entry['component'] == 'situation']
+        self.assertEqual([(entry['candidate'], entry['reference']) for entry in situation_increment],
+                         [('expanded_situation', 'expanded')])
         for entry in diagnostic["component_increments"]:
             self.assertEqual(entry["difference"]["rows"], 100)
-            self.assertIn(entry["component"], ("depth", "position", "opponent"))
+            self.assertIn(entry["component"], ("depth", "position", "opponent", 'situation'))
         self.assertIn("p_context_diagnostic_depth", result["predictions"].columns)
         self.assertEqual(diagnostic["comparison"]["reference_model"], "linear")
 

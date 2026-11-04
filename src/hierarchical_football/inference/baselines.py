@@ -35,6 +35,7 @@ from .contracts import (
     label,
     validate,
 )
+from .situation import SITUATION_CONTINUOUS, SITUATION_FLAGS, _validate_situation_values
 
 PASSING_CONTINUOUS = ("air_yards", "yardline_100", "ydstogo")
 PASSING_CATEGORICAL = ("down", "pass_location")
@@ -42,6 +43,7 @@ PASSING_CONTEXT_COMPONENTS = {
     "linear": (), "depth": ("depth",), "position": ("position",), "opponent": ("opponent",),
     "depth_position": ("depth", "position"), "depth_opponent": ("depth", "opponent"),
     "position_opponent": ("position", "opponent"), "expanded": ("depth", "position", "opponent"),
+    "expanded_situation": ("depth", "position", "opponent", "situation"),
 }
 PASSING_CONTEXTS = tuple(PASSING_CONTEXT_COMPONENTS)
 DEPTH_KNOTS = (0.0, 5.0, 10.0, 20.0, 30.0)
@@ -286,9 +288,10 @@ def passing_context_sources(context):
     if context not in PASSING_CONTEXT_COMPONENTS:
         raise ValueError(f'unknown passing context {context!r}')
     components = PASSING_CONTEXT_COMPONENTS[context]
-    return {'continuous': PASSING_CONTINUOUS,
+    return {'continuous': PASSING_CONTINUOUS + (SITUATION_CONTINUOUS if 'situation' in components else ()),
             'categorical': (PASSING_CATEGORICAL + (("position",) if "position" in components else ()) +
-                            (("defteam",) if "opponent" in components else ()))}
+                            (("defteam",) if "opponent" in components else ()) +
+                            (SITUATION_FLAGS if 'situation' in components else ()))}
 
 
 def passing_design(table, *, identities=(), composites=None, reference=None, context="linear"):
@@ -308,6 +311,10 @@ def passing_design(table, *, identities=(), composites=None, reference=None, con
         raise ValueError(f"unknown passing context {context!r}; expected {PASSING_CONTEXTS}")
     _require_identity_columns(table, identities, PASSING_CONTRACT)
     components = PASSING_CONTEXT_COMPONENTS[context]
+    reference_components = (PASSING_CONTEXT_COMPONENTS.get(reference.spec.get('passing_context'), ())
+                            if reference is not None else ())
+    if 'situation' in components or 'situation' in reference_components:
+        _validate_situation_values(table)
     hinges = ({f"air_yards_above_{knot:g}": ("air_yards", knot) for knot in DEPTH_KNOTS}
               if "depth" in components else {})
     sources = passing_context_sources(context)
@@ -386,6 +393,8 @@ class FittedBaseline:
         contract = CONTRACTS[self.contract]
         validate(table, contract)
         _require_identity_columns(table, self.design.spec["identities"], contract)
+        if 'situation' in PASSING_CONTEXT_COMPONENTS.get(self.design.spec.get('passing_context'), ()):
+            _validate_situation_values(table)
         return build_design(table, reference=self.design, name=self.name)
 
     def predict(self, table):

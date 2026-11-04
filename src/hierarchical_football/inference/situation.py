@@ -15,6 +15,22 @@ _ORDER, _SEASON, _TEAM, _MATCH = ('__situation_order', '__situation_season',
                                  '__situation_team', '__situation_match')
 
 
+def _validate_situation_values(table):
+    """Require declared numeric context with nullable binary flags and finite observations."""
+    require_columns(table, SITUATION_COLUMNS, 'passing situation')
+    for column in SITUATION_COLUMNS:
+        dtype = table.schema[column]
+        if not (dtype.is_numeric() or dtype in (pl.Boolean, pl.Null)):
+            raise ValueError(f'situation {column} must be numeric or null')
+        values = table[column].cast(pl.Float64).drop_nulls()
+        if not values.is_finite().all():
+            raise ValueError(f'situation {column} has nonfinite observed values')
+        if column in SITUATION_FLAGS and not values.is_in([0.0, 1.0]).all():
+            raise ValueError(f'situation {column} must be binary or null')
+    if (table['game_seconds_remaining'].drop_nulls() < 0).any():
+        raise ValueError('situation game_seconds_remaining cannot be negative')
+
+
 def attach_passing_situation(table, pbp):
     """Return unchanged target rows/outcomes with four explicitly selected context fields.
 
@@ -47,14 +63,7 @@ def attach_passing_situation(table, pbp):
                & (pl.col(_TEAM) == pl.col('team')).fill_null(False))
     if joined.filter(~matches).height:
         raise ValueError('situation source must match every target key, season and offense')
-    for column in SITUATION_COLUMNS:
-        values = joined[column].drop_nulls()
-        if not values.is_finite().all():
-            raise ValueError(f'situation {column} has nonfinite observed values')
-        if column in SITUATION_FLAGS and not values.is_in([0.0, 1.0]).all():
-            raise ValueError(f'situation {column} must be binary or null')
-    if (joined['game_seconds_remaining'].drop_nulls() < 0).any():
-        raise ValueError('situation game_seconds_remaining cannot be negative')
+    _validate_situation_values(joined)
     result = joined.sort(_ORDER).select(
         *table.columns,
         *(pl.col(column).cast(pl.Int8) for column in SITUATION_FLAGS),

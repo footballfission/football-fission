@@ -600,3 +600,20 @@ orders and coverage behavior while preventing future modeled inputs from being o
 from the reference screen.
 
 Run `python -m unittest tests.test_inference_context_sources -q`.
+
+## Passing situation model variant
+
+`context="expanded_situation"` adds nullable shotgun/no-huddle categorical terms and
+linear score/clock terms to the existing expanded completion context. Its four fields
+must be explicitly prepared; missing fields and invalid observed values fail in fitting
+and prediction. Null numeric values use the existing training-median design behavior
+with reported fills; flags use the existing declared unknown category. Training scaling
+and levels are reused for later predictions. Existing context variants stay the same.
+
+Model-context coverage uses the same source schema, so the new flags, score and clock
+enter reference category/range checks. The variant is available for declared chronological
+selection and context-only diagnostics, including its increment over expanded context.
+It models associations conditional on a target, not causal formation effects or player
+skill uncertainty. No predictive improvement on NFL data is claimed from its synthetic test.
+
+Run `python -m unittest tests.test_inference_situation_model tests.test_inference_study -q`.

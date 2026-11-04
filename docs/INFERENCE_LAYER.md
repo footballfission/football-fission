@@ -588,3 +588,14 @@ counts. It changes passing columns only; original target rows and outcomes remai
 Use an output such as `data/processed/inference_situation` to preserve frozen inputs.
 This preparation option alone does not change model specifications or establish causal
 player attribution. Run `python -m unittest tests.test_inference_situation_preparation -q`.
+
+## Completion context with observed situation
+
+The explicit `expanded_situation` variant extends expanded depth/position/opponent context
+with shotgun/no-huddle categories and standardized linear pre-play score/clock terms.
+It requires the optional enriched preparation input and validates fields in fitting and
+prediction. The shared raw-source schema includes all four fields in model-context
+reference coverage. Existing contexts and frozen protocols are unchanged. Chronological
+selection and context diagnostics may declare the variant; its component increment is
+relative to expanded context. These are target-conditional associations, not causal credit.
+Run `python -m unittest tests.test_inference_situation_model -q`.

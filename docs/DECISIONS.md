@@ -1042,3 +1042,20 @@ screen checks their source values. This prerequisite preserves the original eigh
 contexts' source columns, design ordering and support reports. It introduces no fitted
 feature or changed prediction. Adding a future context must extend this common schema,
 so the design and its reference coverage cannot silently diverge.
+
+## Expanded completion context with observed situation
+
+The opt-in expanded_situation context retains expanded depth hinges, position and opponent
+terms and adds shotgun/no_huddle categories plus standardized linear score differential
+and game seconds remaining. Its source schema also drives the reference domain screen;
+new modeled inputs cannot be omitted from coverage. Missing columns and invalid observed
+values fail in training and scoring. Null values retain the established median/unknown
+behavior with design notes; no new outcome-dependent imputation is introduced.
+
+The variant is registered for predeclared selection, block pooling, comparisons and
+context-only diagnostics. The all-context test now supplies its required source fields
+and checks its additional situation-over-expanded increment. Existing eight-context
+protocols and model definitions remain unchanged. Added pre-play controls can help explain
+observed target difficulty, but their coefficients are conditional associations. A known
+synthetic formation signal verifies plumbing; improvement or portable player credit must
+be assessed separately on declared chronological development folds.

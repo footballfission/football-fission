@@ -108,6 +108,7 @@
     "tests/test_inference_shared_population.py",
     "tests/test_inference_simulation.py",
     "tests/test_inference_situation.py",
+    "tests/test_inference_situation_model.py",
     "tests/test_inference_situation_preparation.py",
     "tests/test_inference_splits.py",
     "tests/test_inference_study.py",
