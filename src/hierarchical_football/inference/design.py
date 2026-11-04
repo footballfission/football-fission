@@ -114,7 +114,8 @@ def _passing_component(table, identity, player):
 
 def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
                        identity_penalties, context="linear", context_penalty=1.0,
-                       draws=200, seed=0, level=0.95, scale="probability", opponent_penalty=None):
+                       draws=200, seed=0, level=0.95, scale="probability", opponent_penalty=None,
+                       min_rows=DEFAULT_MIN_ROWS):
     """Refitted game-bootstrap interval conditional on penalties, context and a fixed Q.
 
     No interval is emitted for disconnected players or incomplete resamples. This measures
@@ -125,6 +126,8 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
         raise ValueError("bootstrap_contrast identity must be qb_id or receiver_id")
     if isinstance(draws, bool) or not isinstance(draws, int) or draws < 20 or not 0 < level < 1:
         raise ValueError("bootstrap_contrast needs at least 20 draws and 0 < level < 1")
+    if type(min_rows) is not int or min_rows < 1:
+        raise ValueError("bootstrap_contrast needs a positive integer min_rows")
     fixed = dict(fixed or {})
     if set(fixed) - {"qb_id", "receiver_id"}:
         raise ValueError("fixed levels must be passing identities")
@@ -138,7 +141,7 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
     games = sorted(set(train["game_id"]))
     if len(games) < 2:
         raise ValueError("bootstrap_contrast needs at least two games")
-    contrast_args = dict(identity=identity, left=left, right=right, fixed=fixed, scale=scale)
+    contrast_args = dict(identity=identity, left=left, right=right, fixed=fixed, scale=scale, min_rows=min_rows)
     contrast = standardized_contrast(fitted, population, fitting_table=train,
                                      **PASSING_CELLS, **contrast_args)
     # A connected graph is necessary, not sufficient, for separating these identities.

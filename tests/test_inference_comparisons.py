@@ -57,6 +57,12 @@ class TemporalComparisons(unittest.TestCase):
         self.assertEqual(result["report"]["windows"], [])
         self.assertEqual(result["reference_population"].height, 0)
 
+    def test_declared_support_threshold_is_used_in_bootstrap_arm_reports(self):
+        _, run = self.api()
+        result = run(comparison_targets(), spec=self.spec(min_rows=3))
+        for window in result["report"]["windows"]:
+            self.assertEqual(window["bootstrap"]["contrast"]["arms"]["left"]["support"]["min_rows"], 3)
+
     def test_overlapping_windows_and_invalid_settings_are_refused(self):
         for changes in (dict(windows=((2022,), (2022, 2024))), dict(windows=((2024,), (2022,))),
                         dict(min_rows=0), dict(left="r2"), dict(draws=1), dict(sensitivity_penalties=()),

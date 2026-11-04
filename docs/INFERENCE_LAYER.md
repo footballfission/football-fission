@@ -27,6 +27,7 @@ which checks hold it.
 - [Standardized contrasts and support](#standardized-contrasts-and-support)
 - [Records of the first runs](#records-of-the-first-runs)
 - [Reproducible passing studies](#reproducible-passing-studies)
+- [Supported historical player comparisons](#supported-historical-player-comparisons)
 - [What the layer does not do yet](#what-the-layer-does-not-do-yet)
 
 ## What the layer is for
@@ -510,3 +511,27 @@ Declaring a reserved season excludes it from computation; establishing that it h
 been inspected still requires a prospective research record outside this runner.
 
 Run `python -m unittest tests.test_inference_context tests.test_inference_block_pooling tests.test_inference_transfer tests.test_inference_contrast_uncertainty tests.test_inference_study tests.test_inference_study_io -q`.
+
+## Supported historical player comparisons
+
+`compare-passing` consumes a versioned `comparison` object such as
+`examples/passing_player_comparison.json`. It fits the declared team's targeted passes
+in disjoint historical windows, then compares two players with a fixed partner under
+one observed Q from the earliest window. Shared depth/down/direction cells must meet
+the protocol exposure threshold for both joint arms in every period. The retained
+share and all counts are reported; no shared cells yields no player estimates.
+
+The result includes per-window conditional game-bootstrap intervals and a separate
+QB/receiver penalty sensitivity grid. It records reference categories unseen in a
+later model and descriptive sign checks. It does not estimate an interval for change
+between windows. The team-local coefficients do not identify portable player talent.
+Later exposures can restrict Q, so these reports are retrospective and are explicitly
+marked `forecast_evaluation=false`.
+
+The offline file runner saves the exact specification, report, reference population and
+metadata through the common hashed bundle writer. A complete manifest means the workflow
+finished; inspect the report status to see whether a contrast was estimable. The paired
+examples include Philadelphia WRs Brown/Smith with Hurts and Baltimore TEs Andrews/Likely
+with Jackson, selected without fitted outcome rankings.
+
+Run `python -m unittest tests.test_inference_shared_population tests.test_inference_comparisons tests.test_inference_comparison_io -q`.

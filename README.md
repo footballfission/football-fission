@@ -373,3 +373,23 @@ records context categories absent in a later design. Direction checks are descri
 with no interval for the between-window change and no claim of stable talent.
 
 Run the focused checks with `python -m unittest tests.test_inference_comparisons -q`.
+
+## Frozen player-comparison files
+
+```powershell
+python -m hierarchical_football.inference compare-passing --input data/processed/inference/passing_targets.parquet --spec examples/passing_player_comparison.json --output-root data/experiments/player_comparison
+```
+
+`study_io.run_comparison_file` validates the versioned `comparison` object and persists
+`report.json`, the exact protocol, `reference_population.parquet` with its metadata, and
+a complete manifest. Existing paths, unknown fields and invalid protocols fail before
+fitting. Workflow failures retain `failure.json`. A valid comparison with no shared support
+still produces a complete artifact bundle containing an explicit non-estimable report and
+an empty typed reference frame. It produces no player estimates or forecast predictions.
+
+The examples preselect Brown versus Smith with Hurts (Philadelphia WR targets) and
+Andrews versus Likely with Jackson (Baltimore TE targets), using 2022-2023 and 2024-2025
+windows. They are team-scoped retrospective examples, not league-wide talent comparisons.
+Reference construction and bootstrap arm reports use the same declared support threshold.
+
+Run the focused checks with `python -m unittest tests.test_inference_comparison_io tests.test_inference_comparisons -q`.

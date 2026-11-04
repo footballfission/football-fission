@@ -99,6 +99,26 @@ def run_study_file(input_path, specification_path, output_root):
         execute=lambda table: run_passing_study(table, spec=spec, contrasts=contrasts, contrast_draws=contrast_draws))
 
 
+def run_comparison_file(input_path, specification_path, output_root):
+    """Persist a validated retrospective comparison and its exact shared reference rows."""
+    from .comparisons import PassingComparisonSpec, run_passing_comparison
+
+    raw = Path(specification_path).read_bytes()
+    config = json.loads(raw, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
+    if (not isinstance(config, dict) or set(config) != {"schema_version", "comparison"} or
+            type(config.get("schema_version")) is not int or config["schema_version"] != 1 or
+            not isinstance(config.get("comparison"), dict)):
+        raise ValueError("comparison protocol needs schema_version 1 and a comparison object")
+    try:
+        spec = PassingComparisonSpec(**config["comparison"])
+    except (TypeError, KeyError) as error:
+        raise ValueError(f"invalid comparison specification: {error}") from error
+    return _run_bundle(
+        input_path, specification_path, output_root, raw=raw, requested_seasons=spec.requested_seasons,
+        execute=lambda table: run_passing_comparison(table, spec=spec), frame_key="reference_population",
+        frame_filename="reference_population.parquet", team=spec.team)
+
+
 def _run_bundle(input_path, specification_path, output_root, *, raw, requested_seasons, execute,
                  frame_key="predictions", frame_filename="predictions.parquet", team=None):
     """Common publication boundary; public workflows validate their own protocol first."""

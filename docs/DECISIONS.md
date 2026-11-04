@@ -831,3 +831,20 @@ Each public workflow validates its own protocol before reaching that boundary. T
 forecast-study API retains its artifact names and semantics; a retrospective comparison
 may name its saved frame as a reference population instead of predictions. A complete
 manifest certifies a completed workflow, not that a scientific comparison is estimable.
+
+## Frozen comparison artifacts and non-estimable results
+
+The comparison CLI admits only a versioned comparison protocol and validates it before
+creating an output path. It reuses the common consistency-checked bundle writer, saving
+the exact retained reference rows as reference_population.parquet rather than naming them
+predictions. The report distinguishes a completed retrospective workflow from an estimable
+player contrast. No shared support is a complete report with an empty typed reference
+frame and no player estimates; it is not a successful skill measurement. Runtime failures
+retain failure records without complete manifests.
+
+The example pairs are chosen by teammate roles, shared QB and observed exposure, before
+examining fitted player effects. The support screen retains both an estimable Philadelphia
+WR example and a Baltimore TE example that may have no shared cells. No threshold is
+relaxed to manufacture a player conclusion. Bootstrap arm support metadata uses the same
+protocol threshold as shared-population selection. These comparisons use local historical
+rosters to resolve IDs and never rank players or alter forecasting chains.

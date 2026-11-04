@@ -115,7 +115,8 @@ def run_passing_comparison(table, *, spec):
         bootstrap = bootstrap_contrast(
             train, population, **contrast_args, context=spec.context, context_penalty=1.0,
             identity_penalties={"qb_id": spec.qb_penalty, "receiver_id": spec.receiver_penalty},
-            opponent_penalty=spec.opponent_penalty, draws=spec.draws, seed=seed, level=spec.level)
+            opponent_penalty=spec.opponent_penalty, draws=spec.draws, seed=seed, level=spec.level,
+            min_rows=spec.min_rows)
         sensitivities = []
         for qb, receiver in product(spec.sensitivity_penalties, repeat=2):
             fit = fit_block_completion(train, context=spec.context, opponent_penalty=spec.opponent_penalty,

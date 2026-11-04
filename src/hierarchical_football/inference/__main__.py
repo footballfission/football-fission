@@ -32,11 +32,20 @@ def parser():
     study.add_argument("--input", required=True, type=Path)
     study.add_argument("--spec", required=True, type=Path)
     study.add_argument("--output-root", required=True, type=Path)
+    comparison = commands.add_parser("compare-passing", help="Compare supported player contrasts across historical windows")
+    comparison.add_argument("--input", required=True, type=Path)
+    comparison.add_argument("--spec", required=True, type=Path)
+    comparison.add_argument("--output-root", required=True, type=Path)
     return top
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
+    if args.command == "compare-passing":
+        from .study_io import run_comparison_file
+        manifest = run_comparison_file(args.input, args.spec, args.output_root)
+        print(json.dumps({"status": manifest["status"], "output_root": str(args.output_root)}))
+        return
     if args.command == "study-passing":
         from .study_io import run_study_file
         manifest = run_study_file(args.input, args.spec, args.output_root)
