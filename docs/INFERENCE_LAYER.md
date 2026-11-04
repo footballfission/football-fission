@@ -71,6 +71,7 @@ exists, and `docs/DECISIONS.md` records the policy behind each choice.
 | `team_effect.py` | A per-team deviation on the log mean, shrunk by a penalty chosen on an inner split | `tests.test_inference_team_effect` |
 | `allocation.py` | Conserving joint allocation of supplied team target draws | `tests.test_inference_allocation` |
 | `allocation_baseline.py` | Position-pooled proportional shares and matched position-only reference | `tests.test_inference_allocation_baseline` |
+| `allocation_evaluation.py` | Exact conditional count likelihood and conserved-draw marginal calibration | `tests.test_inference_allocation_evaluation`, `tests.test_inference_allocation_sample_evaluation` |
 | `situation.py` | Audited pre-play formation, tempo, score and clock join | `tests.test_inference_situation` |
 | `context_support.py` | Shared model-category and numeric-range reference coverage | `tests.test_inference_context_support` |
 | `estimability.py` | Data-only row-space checks for requested contrast arms | `tests.test_inference_estimability` |
@@ -445,6 +446,7 @@ Run the focused checks with `python -m unittest tests.test_inference_design -q`.
 | [PASSING_CALIBRATION_RESULTS.md](PASSING_CALIBRATION_RESULTS.md) | Known-truth shrinkage bias and conditional interval coverage stress tests |
 | [PASSING_ESTIMABILITY_RESULTS.md](PASSING_ESTIMABILITY_RESULTS.md) | Original-design log-odds and probability-arm estimability on the frozen Philadelphia references |
 | [PASSING_SITUATION_RESULTS.md](PASSING_SITUATION_RESULTS.md) | Matched development prediction comparison from adding observed pre-play formation, tempo, score and clock |
+| [TARGET_ALLOCATION_RESULTS.md](TARGET_ALLOCATION_RESULTS.md) | Conditional player-history allocation increments over position rates, exact conservation and count-calibration limits |
 
 These are evidence from local runs rather than test expectations. Each names its inputs by hash, and a
 refresh of the cache can move the numbers.
@@ -463,7 +465,8 @@ refresh of the cache can move the numbers.
   The layer never turns a term into a ranking. The team-game panel that the opportunity
   models need is built and checked for conservation, and the pooled, team-history, and team-effect volume
   models are fitted and scored on it. Conditional allocation now has a joint sampler and a fitted
-  proportional baseline with a position-only reference; its predictive value has not been evaluated.
+  proportional baseline with a position-only reference; conditional development value has been
+  measured under supplied rosters and observed totals, while operational forecast value is unverified.
   Learned substitution remains future work. The team effect is not promoted: it loses one season
   and wins the next by a twentieth of a CRPS point.
 - No notebooks: the plan's marimo prototypes are not built and `marimo` is not a dependency.

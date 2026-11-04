@@ -24,6 +24,10 @@ with small completion-loss gains, strongest in the 2024 development fold. It als
 [player-contrast estimability audits](docs/PASSING_ESTIMABILITY_RESULTS.md). These distinguish
 conditional estimator uncertainty from uncertainty about player skill.
 
+The [first conditional allocation study](docs/TARGET_ALLOCATION_RESULTS.md) finds that
+individual target history improves on matched position rates in both development years,
+while count intervals still under-cover, especially for players absent from training.
+
 ## Install
 
 From this folder, use either:
