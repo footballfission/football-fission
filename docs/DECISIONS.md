@@ -789,3 +789,17 @@ reduction order, so package versions alone do not describe the numerical invocat
 Unset settings remain null. The runner does not alter them or inspect unrelated environment
 variables. Recorded requests do not establish active library pool sizes when a caller
 has already imported numerical libraries, and they do not promise bitwise reproducibility.
+
+## A shared observed reference for historical comparisons
+
+Historical player comparisons use one fixed observed population restricted by exposure,
+not by observed completion outcomes. Both arms, including any fixed partner, must have
+at least the declared number of targets in a retained context cell in every fitting
+window. The report preserves source/retained counts and all arm exposures so a small
+common population cannot masquerade as a league-wide comparison. No shared cells is
+an explicit non-estimable result rather than permission to extrapolate silently.
+
+Cells use the existing coarse target-depth, down and pass-direction scheme. They do
+not certify overlap on every numeric value, opponent, position or unobserved route.
+Support across retrospective windows can use later exposure information and is not a
+pregame forecast feature or a prospective validation design.

@@ -84,6 +84,7 @@
     "tests/test_inference_partial_pooling.py",
     "tests/test_inference_passing.py",
     "tests/test_inference_rushing.py",
+    "tests/test_inference_shared_population.py",
     "tests/test_inference_splits.py",
     "tests/test_inference_study.py",
     "tests/test_inference_study_io.py",

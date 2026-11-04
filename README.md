@@ -344,3 +344,15 @@ The [independent-shrinkage study](docs/PASSING_SHRINKAGE_RESULTS.md) admits simp
 but selects expanded context with opponent penalty 100 on the earlier validation season.
 Overall completion loss improves slightly in both scored seasons; receiver-specific transfer
 on new partnerships remains uncertain. The finding is development evidence.
+
+## Shared passing reference populations
+
+`design.shared_passing_population(windows, population, identity=..., left=..., right=...,
+fixed=..., min_rows=5)` keeps observed reference rows only in depth/down/pass-direction
+cells supported by both player arms in every named fitting window. A fixed partner is
+counted jointly with the player. It returns the retained population plus exposure counts,
+cell definitions and the retained share. No shared cells produces a typed empty population
+and explicit status. Outcomes do not choose cells. Invalid identities, thresholds or
+empty reference populations raise `ValueError`.
+
+Run the focused checks with `python -m unittest tests.test_inference_shared_population -q`.

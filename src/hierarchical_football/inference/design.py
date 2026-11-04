@@ -28,7 +28,7 @@ from collections import Counter
 import numpy as np
 import polars as pl
 
-from .contracts import UNKNOWN, label, missing
+from .contracts import PASSING_CONTRACT, UNKNOWN, label, missing, validate
 from .partial_pooling import fit_block_completion
 
 AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
@@ -48,6 +48,53 @@ RUSHING_CELLS = {"continuous": (("yardline_100", FIELD_EDGES), ("ydstogo", DISTA
                  "categorical": ("down", "run_location", "run_gap")}
 DEFAULT_MIN_ROWS = 5
 SCALES = ("probability", "log_odds")
+
+
+def shared_passing_population(windows, population, *, identity, left, right, fixed=None,
+                              min_rows=DEFAULT_MIN_ROWS):
+    """Keep observed Q rows in cells supported by both joint arms in every fitting window.
+
+    Support uses the declared coarse depth/down/direction cells. Fixed partners are filtered
+    jointly with the varied player, not counted from unrelated plays. Outcomes never choose
+    cells. Passing this screen does not establish overlap on every modeled covariate.
+    """
+    if not windows or type(min_rows) is not int or min_rows < 1:
+        raise ValueError("shared population needs fitting windows and a positive integer min_rows")
+    if identity not in ("qb_id", "receiver_id") or left == right:
+        raise ValueError("shared population needs two distinct passing identities")
+    fixed = dict(fixed or {})
+    if identity in fixed or set(fixed) - {"qb_id", "receiver_id"}:
+        raise ValueError("fixed levels must name only the other passing identity")
+    if any(not isinstance(value, str) or not value.strip() for value in (left, right, *fixed.values())):
+        raise ValueError("player levels must be nonempty strings")
+    validate(population, PASSING_CONTRACT)
+    if not population.height:
+        raise ValueError("reference population must hold observed rows")
+    source_labels = context_cells(population, **PASSING_CELLS)
+    shared = set(source_labels)
+    exposure = {}
+    for name, table in windows.items():
+        validate(table, PASSING_CONTRACT)
+        exposure[name] = {}
+        for side, player in (("left", left), ("right", right)):
+            arm = table
+            for column, level in {**fixed, identity: player}.items():
+                arm = arm.filter(pl.col(column) == level)
+            counted = Counter(context_cells(arm, **PASSING_CELLS))
+            supported = {cell for cell, count in counted.items() if count >= min_rows}
+            shared &= supported
+            exposure[name][side] = {"rows": arm.height, "cells": len(counted),
+                                     "supported_cells": len(supported), "rows_per_cell": dict(counted)}
+    selected = population.filter(pl.Series([cell in shared for cell in source_labels]))
+    return {"population": selected, "report": {
+        "status": "ok" if selected.height else "no_shared_support", "identity": identity,
+        "left": left, "right": right, "fixed": fixed, "min_rows": min_rows,
+        "source_rows": population.height, "retained_rows": selected.height,
+        "retained_share": selected.height / population.height,
+        "source_cells": len(set(source_labels)), "shared_cells": len(shared),
+        "retained_cells": sorted(shared), "exposure": exposure,
+        "cell_definition": PASSING_CELLS,
+        "note": "coarse observed joint support across all windows; not full positivity or causal identification"}}
 
 
 def _passing_component(table, identity, player):
