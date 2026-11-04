@@ -393,3 +393,8 @@ windows. They are team-scoped retrospective examples, not league-wide talent com
 Reference construction and bootstrap arm reports use the same declared support threshold.
 
 Run the focused checks with `python -m unittest tests.test_inference_comparison_io tests.test_inference_comparisons -q`.
+
+The [first supported player comparisons](docs/PASSING_PLAYER_COMPARISON.md) demonstrate
+both an estimable but uncertain Brown/Smith contrast on a narrow shared target mix and
+an Andrews/Likely case with no shared support under the declared rule. These retrospective
+examples expose prior sensitivity and context gaps; they are not player grades.
