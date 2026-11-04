@@ -7,6 +7,8 @@ import numpy as np
 import polars as pl
 from scipy.special import gammaln, xlogy
 
+from ..metrics import row_crps
+
 from .allocation import _probabilities
 from .panels import CANDIDATE_KEYS, TEAM_GAME_KEYS, conservation
 from .prepare import require_columns, require_unique
@@ -110,3 +112,100 @@ def allocation_log_scores(prediction, observed_panel, observed_candidates):
                           'the supplied roster; no volume/availability evaluation or pregame certification. '
                           'Infinite-loss games remain in the score frame and force null aggregate scores; '
                           'no probability clipping or finite-game-only averaging.'}}
+
+
+def _sample_matrix(values, rows, draws=None):
+    matrix = np.asarray(values)
+    if (matrix.ndim != 2 or matrix.shape[0] != rows or matrix.shape[1] < 1
+            or (draws is not None and matrix.shape[1] != draws)):
+        raise ValueError('conditional allocation samples need matching rows and positive draw counts')
+    if (not np.issubdtype(matrix.dtype, np.integer) or np.any(matrix < 0)
+            or (matrix.size and int(matrix.max()) > np.iinfo(np.int64).max)):
+        raise ValueError('conditional allocation samples must be nonnegative int64 counts')
+    return matrix.astype(np.int64, copy=False)
+
+
+def _aligned_counts(keys, observed, columns):
+    aligned = keys.select(columns).with_row_index('_score_order').join(
+        observed.select(*columns, 'targets'), on=list(columns), how='left', validate='1:1').sort('_score_order')
+    if aligned.height and int(aligned['targets'].max()) > np.iinfo(np.int64).max:
+        raise ValueError('conditional allocation observations exceed int64 count support')
+    return aligned['targets'].cast(pl.Int64).to_numpy()
+
+
+def _marginal_count_scores(keys, samples, truth):
+    if keys.height:
+        means = samples.mean(axis=1)
+        quantiles = np.quantile(samples, [.05, .25, .75, .95], axis=1)
+        crps = row_crps(samples, truth)
+    else:
+        means, crps = np.empty(0), np.empty(0)
+        quantiles = np.empty((4, 0))
+    absolute = np.abs(means - truth)
+    covered50 = (truth >= quantiles[1]) & (truth <= quantiles[2])
+    covered90 = (truth >= quantiles[0]) & (truth <= quantiles[3])
+    width90 = quantiles[3] - quantiles[0]
+    frame = keys.with_columns(
+        pl.Series('targets', truth), pl.Series('mean', means), pl.Series('absolute_error', absolute),
+        pl.Series('crps', crps), pl.Series('lower_50', quantiles[1]), pl.Series('upper_50', quantiles[2]),
+        pl.Series('covered_50', covered50), pl.Series('lower_90', quantiles[0]),
+        pl.Series('upper_90', quantiles[3]), pl.Series('covered_90', covered90), pl.Series('width_90', width90))
+    summary = ({'rows': keys.height, 'draws': samples.shape[1], 'mae': float(absolute.mean()),
+                'crps': float(crps.mean()), 'coverage_50': float(covered50.mean()),
+                'coverage_90': float(covered90.mean()), 'mean_width_90': float(width90.mean())}
+               if keys.height else None)
+    return frame, summary
+
+
+def conditional_allocation_sample_scores(sampled, observed_panel, observed_candidates):
+    """Evaluate marginal count draws after verifying each observed conditional pool.
+
+    Every draw must conserve its observed team total. This is deliberately a
+    conditional-allocation diagnostic; a variable-volume forecast needs a
+    separate evaluation. Observed zero-target candidates remain scored.
+    """
+    required = {'candidate_keys', 'team_game_keys', 'candidate_samples', 'other_samples'}
+    if not isinstance(sampled, dict) or not required <= set(sampled):
+        raise ValueError('conditional allocation scores need keyed candidate and OTHER sample matrices')
+    teams, players = sampled['team_game_keys'], sampled['candidate_keys']
+    if not teams.height:
+        raise ValueError('conditional allocation scores need team games')
+    for frame in (teams, players):
+        if set(frame.columns) & set(LABEL_COLUMNS):
+            raise ValueError('conditional allocation prediction keys must be label-free')
+    _matching_keys(teams, observed_panel, TEAM_GAME_KEYS, 'conditional allocation team games')
+    _matching_keys(players, observed_candidates, PLAYER_KEYS, 'conditional allocation players')
+    for frame in (players, observed_candidates):
+        require_unique(frame, CANDIDATE_KEYS, 'conditional allocation candidate indices')
+        require_unique(frame, (*TEAM_GAME_KEYS, 'player_id'), 'conditional allocation candidate players')
+    _observed_counts(observed_panel, ('targets', 'candidates', 'candidate_targets', 'other_targets'))
+    _observed_counts(observed_candidates, ('targets',))
+    conservation(observed_panel, observed_candidates)
+    other = _sample_matrix(sampled['other_samples'], teams.height)
+    candidates = _sample_matrix(sampled['candidate_samples'], players.height, other.shape[1])
+    target_totals = _aligned_counts(teams, observed_panel, TEAM_GAME_KEYS)
+    other_truth = _aligned_counts(
+        teams, observed_panel.select(*TEAM_GAME_KEYS, pl.col('other_targets').alias('targets')), TEAM_GAME_KEYS)
+    truth = _aligned_counts(players, observed_candidates, PLAYER_KEYS)
+    totals = other.copy()
+    if np.any(totals > target_totals[:, None]):
+        raise ValueError('conditional allocation samples must conserve observed team totals')
+    pool_rows = {tuple(key): i for i, key in enumerate(teams.select(TEAM_GAME_KEYS).iter_rows())}
+    for index, key in enumerate(players.select(TEAM_GAME_KEYS).iter_rows()):
+        row = pool_rows[tuple(key)]
+        # Check remaining mass before adding, preserving exact int64 arithmetic.
+        if np.any(candidates[index] > target_totals[row] - totals[row]):
+            raise ValueError('conditional allocation samples must conserve observed team totals')
+        totals[row] += candidates[index]
+    if np.any(totals != target_totals[:, None]):
+        raise ValueError('conditional allocation samples must conserve observed team totals')
+    candidate_scores, candidate_summary = _marginal_count_scores(players.select(PLAYER_KEYS), candidates, truth)
+    other_scores, other_summary = _marginal_count_scores(teams.select(TEAM_GAME_KEYS), other, other_truth)
+    return {'candidate_scores': candidate_scores, 'other_scores': other_scores,
+            'report': {'status': 'ok', 'team_games': teams.height, 'draws': other.shape[1],
+                       'conditional_on_observed_totals': True, 'conservation_verified': True,
+                       'candidates': candidate_summary, 'other': other_summary,
+                       'interpretation': 'Marginal count error and central-interval coverage under fixed '
+                                         'observed team totals and supplied rosters; zeros retained. '
+                                         'No volume, availability, parameter-uncertainty or skill validation; '
+                                         'a completed evaluation does not certify nominal coverage.'}}

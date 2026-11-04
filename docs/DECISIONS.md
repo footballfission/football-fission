@@ -1161,3 +1161,19 @@ game count, keeping strict JSON valid without reporting a finite-only average. T
 likelihoods evaluate supplied conditional allocation distributions, not team volume,
 availability, latent skill or causal substitution. Parameter or calibration uncertainty
 requires separate evidence.
+
+## Conditional count-draw calibration
+
+Allocation sample evaluation first validates exact identity alignment, observed count
+conservation and nonnegative integer matrices with matching draw dimensions. Every draw
+must close to the observed team total; variable-volume forecast evaluation is deliberately
+outside this conditional interface. Remaining-mass checks preserve exact int64 arithmetic
+while verifying joint pool closure. Observed zeros stay in the candidate denominator.
+
+Keyed candidate and OTHER tables retain marginal mean errors, empirical CRPS and inclusive
+central 50%/90% interval bounds and coverage. Summaries use the same count units and
+quantile convention as existing volume diagnostics, and report mean 90% width. An empty
+candidate population has a typed empty frame and null summary rather than NaN. The
+residual is always scored separately. These are outcome-distribution diagnostics under
+supplied rosters and realized team totals; nominal levels are targets to test, not
+certified coverage or latent player-skill intervals.

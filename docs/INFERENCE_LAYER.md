@@ -651,3 +651,12 @@ Impossible positive-count/zero-probability events retain infinite scores and for
 infinite-loss/null aggregate reporting. Failed cases are never clipped or dropped. These
 are conditional allocation diagnostics, not volume or availability forecasting evidence.
 Run `python -m unittest tests.test_inference_allocation_evaluation -q`.
+
+## Conditional allocation sample calibration
+
+`conditional_allocation_sample_scores` scores keyed candidate/OTHER draw matrices only
+after every draw conserves its observed team target total. It retains zero-target candidates,
+reports separate MAE/CRPS and central 50%/90% coverage/width, and returns row scores for
+further diagnostics. Empty candidate summaries are null. This explicitly conditional
+evaluation does not measure volume or availability forecast quality or certify nominal
+coverage. Run `python -m unittest tests.test_inference_allocation_sample_evaluation -q`.

@@ -717,3 +717,19 @@ misrepresenting an impossible prediction. These scores condition on observed tea
 and supplied rosters; they do not evaluate volume or pregame availability forecasts.
 
 Run `python -m unittest tests.test_inference_allocation_evaluation -q`.
+
+## Conditional allocation draw calibration
+
+`allocation_evaluation.conditional_allocation_sample_scores(sampled, observed_panel,
+observed_candidates)` evaluates keyed count draws after verifying that every team/draw
+sums exactly to its observed team target total. Sample matrices must be nonnegative
+integers with the same positive draw count. Prediction and observation keys match exactly.
+
+It returns candidate and OTHER score tables with mean, absolute error, empirical CRPS and
+central 50%/90% interval bounds/coverage. Separate summaries report MAE, CRPS, coverage and
+mean 90% width. Observed zero-target candidates remain in every denominator. Empty rosters
+have a typed empty candidate table and null candidate summary, while OTHER remains scored.
+These are fixed-total conditional diagnostics; completed scoring does not certify nominal
+coverage, parameter uncertainty or availability/volume forecasts.
+
+Run `python -m unittest tests.test_inference_allocation_sample_evaluation -q`.

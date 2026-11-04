@@ -93,6 +93,7 @@
     "tests/test_inference_allocation.py",
     "tests/test_inference_allocation_baseline.py",
     "tests/test_inference_allocation_evaluation.py",
+    "tests/test_inference_allocation_sample_evaluation.py",
     "tests/test_inference_audits.py",
     "tests/test_inference_baselines.py",
     "tests/test_inference_block_pooling.py",
