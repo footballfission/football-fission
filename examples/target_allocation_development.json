@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "allocation": {
+    "purpose": "conditional_development",
+    "train_seasons": [2022, 2023],
+    "evaluation_seasons": [2024, 2025],
+    "prior_exposure": 100.0,
+    "models": ["position_only", "player_history"],
+    "count_draws": 2000,
+    "bootstrap_draws": 2000,
+    "seed": 0,
+    "level": 0.95,
+    "availability": "supplied_weekly_ACT_roster",
+    "team_totals": "observed",
+    "primary": "player_history_minus_position_only_mean_team_game_multinomial_nll",
+    "secondary": [
+      "candidate_count_mae_crps_and_50_90_coverage",
+      "OTHER_count_mae_crps_and_50_90_coverage",
+      "training_seen_unseen_candidate_calibration"
+    ]
+  }
+}

@@ -733,3 +733,20 @@ These are fixed-total conditional diagnostics; completed scoring does not certif
 coverage, parameter uncertainty or availability/volume forecasts.
 
 Run `python -m unittest tests.test_inference_allocation_sample_evaluation -q`.
+
+## Frozen conditional allocation evaluation
+
+`examples/target_allocation_development.json` predeclares the first allocation study:
+2022-2023 training followed by 2024 scoring, then expanded 2022-2024 training followed by
+2025 scoring. Position-only and player-history predictions share one fitted set of position
+and OTHER priors, the same supplied weekly ACT roster and realized team target total.
+The exposure prior stays fixed at 100; there is no evaluation-season parameter search.
+
+The primary comparison is player-history minus position-only mean team-game multinomial
+negative log likelihood, with 2,000 paired whole-game bootstrap draws. Secondary count
+MAE/CRPS and central 50%/90% coverage use 2,000 draws per model/fold, including zero-target
+candidates, OTHER and training-seen/unseen identities. This is a research protocol composed
+with the Python allocation APIs; the exact local runner is retained in its experiment
+bundle. It is not a `study-passing` completion protocol. Realized totals and supplied
+rosters make this conditional development evidence, with no volume, availability,
+untouched-holdout or operational forecast certification.

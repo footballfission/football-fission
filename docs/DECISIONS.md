@@ -1177,3 +1177,21 @@ candidate population has a typed empty frame and null summary rather than NaN. T
 residual is always scored separately. These are outcome-distribution diagnostics under
 supplied rosters and realized team totals; nominal levels are targets to test, not
 certified coverage or latent player-skill intervals.
+
+## First conditional allocation comparison protocol
+
+Before reading any allocation scores, the two-model study freezes a position-only versus
+player-history comparison on identical supplied rosters and realized team target pools.
+Training2022-2023 predicts2024; expanding training through2024 predicts2025. The exposure
+prior remains100 without parameter search. Primary loss is mean team-game multinomial
+negative log likelihood, paired by whole game (both offenses together), with2,000 bootstrap
+draws, seed0 and95% intervals. Secondary count metrics use2,000 multinomial draws/model/fold
+and retain zeros, OTHER and training-seen/unseen candidate rows. Models use a common fold
+sampling seed; primary log likelihood is exact and independent of sample Monte Carlo error.
+
+This predeclared JSON is a research composition of the Python APIs, with a frozen local
+runner and full source/input/output provenance retained in an ignored experiment bundle.
+It does not add a new public file workflow. Supplied ACT rosters have no publication-time
+certification, totals are observed, and these seasons were previously inspected during
+development. Conditional allocation increments cannot establish volume, availability,
+weekly fantasy forecast improvement or causal target-earning skill.

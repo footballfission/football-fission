@@ -40,6 +40,7 @@
     "examples/passing_study.json",
     "examples/passing_unsupported_comparison.json",
     "examples/predict_wr.py",
+    "examples/target_allocation_development.json",
     "prepare_inference_tables.py",
     "pyproject.toml",
     "src/hierarchical_football/__init__.py",
