@@ -620,3 +620,15 @@ closure and samples jointly. Team/game and player-ID sorting removes arbitrary r
 effects. This establishes the conservation gate for target allocation, while shares,
 availability and volume remain supplied inputs. No learned allocation or pregame roster
 timestamp certification is claimed. Run `python -m unittest tests.test_inference_allocation -q`.
+
+## Proportional receiving allocation baseline
+
+`allocation_baseline.fit_proportional_allocation` estimates positive position-pooled rates
+from historical targets per eligible team-target exposure. Its predictor normalizes rates
+over a supplied future WR/RB/TE roster and OTHER, returning keys and probability arrays for
+the joint allocation sampler. Predictions exclude raw labels, follow the last training
+week and cannot reuse training game IDs. Counts and roster metadata are validated.
+Removing a candidate implements proportional redistribution. This is a fixed-share
+conditional baseline, with no learned availability/substitution response or certified
+pregame roster cutoff. It is not yet a demonstrated forecasting improvement.
+Run `python -m unittest tests.test_inference_allocation_baseline -q`.

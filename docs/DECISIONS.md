@@ -1101,3 +1101,25 @@ function's documented contract. Null or differing summaries, duplicate team-game
 candidate groups absent from the panel are refused. Valid panel totals, zero-candidate
 games and explicit OTHER residuals retain their behavior. Allocation exposure calculations
 may rely on this reconciliation; this change introduces no model or new target counts.
+
+## Historical proportional target-rate baseline
+
+The first share estimator uses targets divided by eligible team-target exposure rather
+than targets per calendar game. A player's exposure includes team targets only in roster
+games where that player was an eligible candidate, preserving observed zeros without
+adding games in which the player was absent. The global candidate share is smoothed by
+one exposure unit toward 1/(mean training candidate count + 1). Position rates shrink by
+prior_exposure (default 100) toward that global mean, and player rates shrink by the same
+exposure mass toward the current declared position mean. An unobserved modeled position
+uses the global prior. OTHER is smoothed by one exposure unit toward the equal-slot prior.
+These strictly positive rates are normalized over the supplied roster plus OTHER.
+
+All pooling uses training counts and rosters. Prediction requires label-free frames,
+strictly later weeks, no reused training game IDs and consistent panel/candidate metadata.
+Training counts must be finite nonnegative integers and reconcile with the panel. No
+eligible positive exposure means no fit. Stable summation prevents arbitrary roster order
+from changing probabilities. Removing a supplied candidate gives the proportional
+redistribution benchmark, not a learned injury response. Historical ACT status is a
+scenario input, not proof of pregame availability. Fixed-rate multinomial draws carry no
+share-parameter uncertainty. Chronological prediction and calibration must be evaluated
+before any improvement or player-skill interpretation is claimed.

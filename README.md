@@ -667,3 +667,26 @@ candidate rows before accepting pool closure. It rejects null/stale summaries, c
 groups without a panel team game and duplicate panel keys. It preserves valid zero-candidate
 and OTHER-only pools. This closes a gap where recomputation could previously hide an
 inconsistent stored summary. Run `python -m unittest tests.test_inference_panels -q`.
+
+## Position-pooled proportional allocation baseline
+
+`allocation_baseline.fit_proportional_allocation(train_panel, train_candidates,
+prior_exposure=100)` fits historical target rates per eligible team-target exposure.
+A player's denominator sums team targets only in games where that player was a roster
+candidate. Global, position and player pooling uses training data; OTHER has a positive
+smoothed rate. Sparse and new WR/RB/TE candidates retain positive mass, with the global
+mean standing in for an unobserved training position.
+
+`fitted.predict(future_panel, future_candidates)` returns row-aligned candidate and OTHER
+probabilities plus keys and fallback counts, directly usable by the joint allocation
+sampler. Prediction inputs must be label-free, strictly after the last full training week,
+with no reused training game IDs and consistent season/week metadata. Removing a supplied
+candidate proportionally redistributes the remaining rates. Input row order does not alter
+keyed probabilities. Training counts and candidate summaries must reconcile.
+
+The report records priors, rates, counts and cutoff. This is a conditional roster-scenario
+baseline with fixed share estimates; it learns no availability or substitution response,
+adds no parameter uncertainty and does not certify pregame roster publication or portable
+player talent. It has not yet demonstrated a forecast improvement.
+
+Run `python -m unittest tests.test_inference_allocation_baseline -q`.
