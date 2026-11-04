@@ -892,3 +892,19 @@ behavior. Silently conditioning on only well-covered resamples would change that
 distribution. These diagnostics expose model dependence and do not certify interval
 coverage or causal identification. Player-identity failures retain their existing explicit
 suppression policy.
+
+## Synthetic passing identification scenarios
+
+Known-truth experiments use a declared additive logistic DGP with balanced game blocks,
+QB effects +/-0.25, receiver effects +/-0.6, intercept 0.4 and depth slope -0.04 about
+10 yards. The reference is an equal-weight two-depth mix with synthetic_q1. The generator
+returns exact arm probabilities and contrast separately from sampled Bernoulli outcomes.
+Every ID is synthetic and a fixed seed reproduces the frame. There are no latent game
+effects, missing covariates, or causal interpretation.
+
+The crossed scenario supplies every partner/depth combination per game. Nested partners
+isolate the existing graph guard. Depth-confounded targets cross QBs and receivers but
+assign depth 6 exclusively to r1 and 9 exclusively to r2; both occupy the same coarse cell.
+This distinguishes graph connectivity and marginal coverage from structural separation
+of identity and continuous context. The truth is declared even where the observed design
+cannot identify it. Simulation is a stress test, not evidence of NFL interval calibration.

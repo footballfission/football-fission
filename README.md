@@ -442,3 +442,15 @@ overlap. These diagnostics preserve the regularized estimator and its interval; 
 not silently reinterpret a completed bootstrap as complete covariate coverage.
 
 Run the focused checks with `python -m unittest tests.test_inference_contrast_uncertainty -q`.
+
+## Known-truth passing simulation
+
+`simulation.simulate_passing(games=20, repeats=4, seed=0, scenario="crossed")`
+generates canonical synthetic targets, an outcome-independent two-depth Q and its exact
+receiver probability contrast with a fixed QB. The additive logistic generating model
+is returned explicitly. `nested` isolates disconnected partnerships; `depth_confounded`
+crosses partners while aliasing receiver and depth inside a shared coarse cell. All player
+and game IDs are synthetic. Independent Bernoulli outcomes have no latent game effects;
+these controlled scenarios do not validate NFL talent estimates.
+
+Run `python -m unittest tests.test_inference_simulation -q`.
