@@ -803,3 +803,21 @@ Cells use the existing coarse target-depth, down and pass-direction scheme. They
 not certify overlap on every numeric value, opponent, position or unobserved route.
 Support across retrospective windows can use later exposure information and is not a
 pregame forecast feature or a prospective validation design.
+
+## Retrospective temporal contrasts on one population
+
+A player comparison fits each declared, disjoint historical window using only the named
+team's targeted passes. The earliest window supplies fixed Q, restricted by position if
+requested, then jointly supported cells are retained across every window and both arms.
+Later exposures can determine that support, so this is retrospective explanation rather
+than a prospective forecast evaluation. Fixed QB, receiver and opponent priors are never
+selected by this runner, and the situational context penalty remains 1.
+
+Each period uses an independently seeded conditional game bootstrap. A separate Cartesian
+grid varies QB and receiver penalties; its range is sensitivity to priors, not sampling
+uncertainty. No range is shown when grid fits fail. Missing seasons fail rather than
+silently shortening a window. No shared population produces a non-estimable report.
+Context categories absent from a later design are recorded because coarse shared cells
+do not ensure positivity on every covariate. A sign agreement is descriptive and no
+interval for between-period change, player leaderboard, or claim of persistent skill is
+constructed. Team-local effects cannot be read as league-wide player grades.

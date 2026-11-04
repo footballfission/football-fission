@@ -356,3 +356,20 @@ and explicit status. Outcomes do not choose cells. Invalid identities, threshold
 empty reference populations raise `ValueError`.
 
 Run the focused checks with `python -m unittest tests.test_inference_shared_population -q`.
+
+## Retrospective player comparisons
+
+`comparisons.run_passing_comparison(table, spec=PassingComparisonSpec(...))` compares two
+players with one fixed partner across disjoint historical windows on one shared observed
+population. Fits use the declared team's targeted passes; Q starts with the earliest
+window, optionally restricted by receiver position, then passes the joint-support screen.
+Fixed priors and a context penalty of 1 are reused across periods. Each window reports a
+conditional game-bootstrap interval and a separate QB/receiver prior sensitivity grid.
+
+The specification validates windows, IDs, priors, support and uncertainty settings.
+Missing declared team seasons fail. No shared support returns no estimates. Failed or
+incomplete fits retain explicit status; sensitivity failures suppress the range. The report
+records context categories absent in a later design. Direction checks are descriptive,
+with no interval for the between-window change and no claim of stable talent.
+
+Run the focused checks with `python -m unittest tests.test_inference_comparisons -q`.
