@@ -1,5 +1,7 @@
 """Synthetic calibration bundles must never imply an external NFL data input."""
 import hashlib
+from contextlib import redirect_stderr
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -9,6 +11,7 @@ from unittest.mock import patch
 import polars as pl
 
 from hierarchical_football.inference import study_io
+from hierarchical_football.inference.__main__ import main, parser
 
 
 class CalibrationFiles(unittest.TestCase):
@@ -53,6 +56,15 @@ class CalibrationFiles(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.run_calibration()
         self.assertEqual((self.output/'manifest.json').read_bytes(), before)
+
+    def test_cli_runs_synthetic_protocol_without_external_input_argument(self):
+        main(['calibrate-passing', '--spec', str(self.spec), '--output-root', str(self.output)])
+        manifest = json.loads((self.output/'manifest.json').read_text())
+        self.assertEqual(manifest['input'], {'kind': 'synthetic'})
+        self.assertTrue((self.output/'trials.parquet').exists())
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parser().parse_args(['calibrate-passing', '--input', 'NFL.parquet',
+                                 '--spec', str(self.spec), '--output-root', str(self.output)])
 
     def test_invalid_or_duplicate_protocol_fails_before_output_creation(self):
         invalid = [dict(self.config, unknown=True), {'schema_version': True, 'calibration': {}},

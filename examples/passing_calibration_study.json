@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "calibration": {
+    "trials": 30,
+    "draws": 50,
+    "games": 20,
+    "repeats": 4,
+    "penalties": [1.0, 100.0, 1000.0],
+    "scenarios": ["crossed", "nested", "depth_confounded"],
+    "seed": 20261103,
+    "level": 0.95
+  }
+}

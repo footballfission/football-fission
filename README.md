@@ -515,3 +515,21 @@ errors leave `failure.json`. Unknown fields, duplicate keys and invalid protocol
 before creating outputs. A completed study can validly report no available intervals.
 
 Run `python -m unittest tests.test_inference_calibration_io -q`.
+
+## Passing calibration command
+
+```powershell
+$env:OPENBLAS_NUM_THREADS='1'
+$env:OMP_NUM_THREADS='1'
+python -m hierarchical_football.inference calibrate-passing --spec examples/passing_calibration_study.json --output-root data/experiments/passing_calibration_new
+```
+
+The command runs a frozen synthetic protocol without an external data input. The example
+matches the first calibration study's design: 30 datasets per scenario, 50 bootstrap
+refits, three priors and three support scenarios. It takes several minutes. Set thread
+environment variables before Python starts. Use a fresh output directory for each run.
+Reports, per-trial results and provenance are saved before a complete manifest is written.
+A complete manifest does not mean intervals are calibrated; inspect coverage, availability,
+Monte Carlo bounds and the declared DGP. The console explicitly marks synthetic runs.
+
+Run `python -m unittest tests.test_inference_calibration_io -q`.

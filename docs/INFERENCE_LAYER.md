@@ -561,3 +561,13 @@ versus 0/30 at each stronger penalty. A connected but depth-confounded design
 also yields 0/30 at every penalty despite full bootstrap completion and coarse
 support. These controlled results reveal shrinkage bias and structural aliasing;
 they do not calibrate real-player uncertainty or choose a production prior.
+
+## Repeating known-truth calibration
+
+Run `python -m hierarchical_football.inference calibrate-passing --spec
+examples/passing_calibration_study.json --output-root data/experiments/passing_calibration_new`
+(on one command line). This reads no external NFL input. The frozen synthetic protocol
+saves trial parquet, report, metadata and a complete-last manifest with source hashes and
+runtime settings. Existing outputs are refused. The example's 30 datasets and 50 draws
+per interval are a diagnostic setting, with finite Monte Carlo bounds reported explicitly;
+interpret the first study in [PASSING_CALIBRATION_RESULTS.md](PASSING_CALIBRATION_RESULTS.md).

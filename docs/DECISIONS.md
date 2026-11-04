@@ -974,3 +974,13 @@ before output creation. Existing output roots are refused; source/specification 
 or nonfinite report values leave failure.json without a complete manifest. No simulation
 result can establish real-player coverage by completing the workflow. No external data is
 read, no network is used, and no synthetic input hash is disguised as an NFL dataset.
+
+## Offline synthetic calibration command
+
+The calibrate-passing subcommand accepts only a specification and a fresh output root;
+it has no external input argument. The checked-in example reproduces the first synthetic
+study's declared sample sizes, priors and seed through the shared frozen-bundle writer.
+The console and manifest identify synthetic provenance. This makes known-truth diagnostics
+repeatable without a scratch runner, but neither a completed command nor matching toy
+coverage certifies NFL skill uncertainty. Runtime thread settings are established by the
+caller before Python starts and recorded, not changed after numerical libraries import.

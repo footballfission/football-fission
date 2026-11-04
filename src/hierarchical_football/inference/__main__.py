@@ -36,11 +36,19 @@ def parser():
     comparison.add_argument("--input", required=True, type=Path)
     comparison.add_argument("--spec", required=True, type=Path)
     comparison.add_argument("--output-root", required=True, type=Path)
+    calibration = commands.add_parser('calibrate-passing', help='Check known-truth synthetic contrast coverage')
+    calibration.add_argument('--spec', required=True, type=Path)
+    calibration.add_argument('--output-root', required=True, type=Path)
     return top
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
+    if args.command == 'calibrate-passing':
+        from .study_io import run_calibration_file
+        manifest = run_calibration_file(args.spec, args.output_root)
+        print(json.dumps({'status': manifest['status'], 'synthetic': True, 'output_root': str(args.output_root)}))
+        return
     if args.command == "compare-passing":
         from .study_io import run_comparison_file
         manifest = run_comparison_file(args.input, args.spec, args.output_root)
