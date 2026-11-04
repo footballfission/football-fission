@@ -426,3 +426,14 @@ comparison without changing its priors, windows, or exposure threshold. Restrict
 changes the comparison population; it does not demonstrate that player ability changed.
 
 Run the focused checks with `python -m unittest tests.test_inference_comparisons -q`.
+
+## Contrast resampling context coverage
+
+`bootstrap_contrast` reports the original reference model-context audit plus diagnostics
+for converged eligible bootstrap refits: evaluated draws, draws with context failures,
+maximum failed reference rows, mean failed row share, and per-column counts of draws
+with unseen categories, numeric extrapolation or nonfinite reference values. Counts can
+overlap. These diagnostics preserve the regularized estimator and its interval; they do
+not silently reinterpret a completed bootstrap as complete covariate coverage.
+
+Run the focused checks with `python -m unittest tests.test_inference_contrast_uncertainty -q`.

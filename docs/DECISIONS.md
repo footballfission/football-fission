@@ -876,3 +876,19 @@ The restriction changes an estimand and is not a correction to a player's talent
 removes marginal domain failures in original fitting windows but does not ensure joint
 support or that a particular bootstrap resample retains every context category. Shared
 exposure remains retrospective, and this policy does not certify prospective validation.
+
+## Context coverage during game resampling
+
+An original fitting window can cover Q while a resampled set of games loses an opponent
+category or numeric boundary. Contrast bootstrap reports those failures for each converged
+eligible refit, separately from missing-player, disconnected-player and solver failures.
+The denominator is evaluated refits, not all requested draws when some were ineligible.
+The original-window audit remains visible alongside mean and worst reference-row failure
+counts and per-column draw counts.
+
+Context-domain failures do not automatically remove draws or suppress the interval: the
+regularized estimator is defined with its existing category fallback and extrapolation
+behavior. Silently conditioning on only well-covered resamples would change that sampling
+distribution. These diagnostics expose model dependence and do not certify interval
+coverage or causal identification. Player-identity failures retain their existing explicit
+suppression policy.

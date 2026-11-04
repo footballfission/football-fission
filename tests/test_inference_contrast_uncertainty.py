@@ -23,6 +23,20 @@ def crossed_targets(seed=0, games=16):
 
 
 class ContrastUncertainty(unittest.TestCase):
+    def test_resamples_expose_lost_opponent_categories_and_numeric_ranges(self):
+        train = crossed_targets(games=4).with_columns(
+            pl.when(pl.col("game_id") == "g0").then(pl.lit("rare")).otherwise(pl.lit("common")).alias("defteam"),
+            pl.when(pl.col("game_id") == "g0").then(pl.lit(95.0)).otherwise(pl.lit(40.0)).alias("yardline_100"))
+        report = self.run_contrast(train, context="expanded", opponent_penalty=100)
+        self.assertEqual(report["status"], "ok")
+        self.assertIn("resample_context", report)
+        coverage = report["resample_context"]
+        self.assertEqual(coverage["evaluated_draws"], 20)
+        self.assertGreater(coverage["draws_with_failures"], 0)
+        self.assertGreater(coverage["category_draws"]["defteam"], 0)
+        self.assertGreater(coverage["numeric_range_draws"]["yardline_100"], 0)
+        self.assertEqual(report["reference_context"]["windows"]["fit"]["rows_with_any_failure"], 0)
+
     def test_contrast_bootstrap_records_and_reuses_the_opponent_prior(self):
         report = self.run_contrast(context="expanded", opponent_penalty=100)
         self.assertEqual(report["opponent_penalty"], 100)

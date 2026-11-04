@@ -29,6 +29,7 @@ import numpy as np
 import polars as pl
 
 from .contracts import PASSING_CONTRACT, UNKNOWN, label, missing, validate
+from .context_support import model_context_population
 from .partial_pooling import fit_block_completion
 
 AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
@@ -154,6 +155,12 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
               "identity_penalties": dict(identity_penalties), "context": context,
               "context_penalty": context_penalty,
               "opponent_penalty": opponent_penalty,
+              "reference_context": model_context_population({"fit": train}, population, context=context)["report"],
+              "resample_context": {"evaluated_draws": 0, "draws_with_failures": 0, "max_failed_rows": 0,
+                                    "mean_failed_reference_share": None, "category_draws": {},
+                                    "numeric_range_draws": {}, "nonfinite_draws": {},
+                                    "note": "coverage diagnostics on converged eligible refits; counts overlap; "
+                                            "context failures do not automatically suppress the estimator interval"},
               "note": "conditional game bootstrap; fixed penalties and reference population; "
                       "not causal, not a posterior, and not an identification interval"}
     if not connected or not fitted.in_sample["converged"]:
@@ -164,6 +171,7 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
         return report
     blocks = {game: train.filter(pl.col("game_id") == game) for game in games}
     rng, differences = np.random.default_rng(seed), []
+    failed_context_rows = 0
     for _ in range(draws):
         # Re-key repeated games so canonical play uniqueness survives cluster resampling.
         sampled = pl.concat([blocks[games[int(index)]].with_columns(
@@ -183,8 +191,25 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
         if not refit.in_sample["converged"]:
             report["failures"]["not_converged"] += 1
             continue
+        domain = model_context_population({"resample": sampled}, population, context=context)["report"]
+        detail = domain["windows"]["resample"]
+        coverage = report["resample_context"]
+        coverage["evaluated_draws"] += 1
+        failed = population.height - domain["retained_rows"]
+        failed_context_rows += failed
+        coverage["draws_with_failures"] += int(failed > 0)
+        coverage["max_failed_rows"] = max(coverage["max_failed_rows"], failed)
+        for target, source in (("category_draws", "unseen_categorical_rows"),
+                               ("numeric_range_draws", "outside_continuous_rows"),
+                               ("nonfinite_draws", "nonfinite_continuous_rows")):
+            for column, count in detail[source].items():
+                if count:
+                    coverage[target][column] = coverage[target].get(column, 0) + 1
         differences.append(standardized_contrast(refit, population, **contrast_args)["difference"])
     report["successful_draws"] = len(differences)
+    if report["resample_context"]["evaluated_draws"]:
+        report["resample_context"]["mean_failed_reference_share"] = (
+            failed_context_rows / (report["resample_context"]["evaluated_draws"] * population.height))
     report["status"] = "ok" if len(differences) == draws else "incomplete_resamples"
     if report["status"] == "ok":
         tail = (1 - level) / 2
