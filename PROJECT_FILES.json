@@ -86,6 +86,7 @@
     "tests/test_inference_block_pooling.py",
     "tests/test_inference_build.py",
     "tests/test_inference_calibration.py",
+    "tests/test_inference_calibration_io.py",
     "tests/test_inference_cli.py",
     "tests/test_inference_comparison_io.py",
     "tests/test_inference_comparisons.py",

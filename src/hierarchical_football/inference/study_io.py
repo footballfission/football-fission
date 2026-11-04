@@ -119,25 +119,52 @@ def run_comparison_file(input_path, specification_path, output_root):
         frame_filename="reference_population.parquet", team=spec.team)
 
 
+def run_calibration_file(specification_path, output_root):
+    """Persist known-truth synthetic trials without an external input dataset."""
+    from .calibration import CalibrationSpec, run_calibration
+
+    raw = Path(specification_path).read_bytes()
+    config = json.loads(raw, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
+    if (not isinstance(config, dict) or set(config) != {'schema_version', 'calibration'} or
+            type(config.get('schema_version')) is not int or config['schema_version'] != 1 or
+            not isinstance(config.get('calibration'), dict)):
+        raise ValueError('calibration protocol needs schema_version 1 and a calibration object')
+    try:
+        spec = CalibrationSpec(**config['calibration'])
+    except (TypeError, KeyError) as error:
+        raise ValueError(f'invalid calibration specification: {error}') from error
+    return _run_bundle(
+        None, specification_path, output_root, raw=raw, requested_seasons=(),
+        execute=lambda _: run_calibration(spec), frame_key='trials', frame_filename='trials.parquet')
+
+
 def _run_bundle(input_path, specification_path, output_root, *, raw, requested_seasons, execute,
                  frame_key="predictions", frame_filename="predictions.parquet", team=None):
     """Common publication boundary; public workflows validate their own protocol first."""
-    input_path, specification_path, output_root = map(Path, (input_path, specification_path, output_root))
-    if not input_path.is_file():
+    specification_path, output_root = map(Path, (specification_path, output_root))
+    input_path = Path(input_path) if input_path is not None else None
+    if input_path is not None and not input_path.is_file():
         raise FileNotFoundError(input_path)
     output_root.mkdir(parents=True, exist_ok=False)
     try:
-        source_hashes, input_hash = _source_hashes(), content_hash(input_path)
+        source_hashes = _source_hashes()
+        input_hash = content_hash(input_path) if input_path is not None else None
+        input_provenance = ({'path': str(input_path.resolve()), 'sha256': input_hash}
+                            if input_path is not None else {'kind': 'synthetic'})
         thread_environment = {key: os.environ.get(key) for key in THREAD_ENVIRONMENT_KEYS}
         spec_hash = hashlib.sha256(raw).hexdigest()
         started_at, revision = utc_now(), _revision()
         (output_root / "specification.json").write_bytes(raw)
-        # Predicate pushdown excludes undeclared/reserved seasons before materialization.
-        lazy = pl.scan_parquet(input_path).filter(pl.col("season").is_in(requested_seasons))
-        if team is not None:
-            lazy = lazy.filter(pl.col("team") == team)
-        result = execute(lazy.collect())
-        if (_source_hashes() != source_hashes or content_hash(input_path) != input_hash or
+        table = None
+        if input_path is not None:
+            # Predicate pushdown excludes undeclared/reserved seasons before materialization.
+            lazy = pl.scan_parquet(input_path).filter(pl.col("season").is_in(requested_seasons))
+            if team is not None:
+                lazy = lazy.filter(pl.col("team") == team)
+            table = lazy.collect()
+        result = execute(table)
+        if (_source_hashes() != source_hashes or
+                (input_path is not None and content_hash(input_path) != input_hash) or
                 content_hash(specification_path) != spec_hash):
             raise ValueError("source, input or specification changed during the study")
         json.dumps(result["report"], allow_nan=False)
@@ -146,7 +173,7 @@ def _run_bundle(input_path, specification_path, output_root, *, raw, requested_s
         outputs = {name: content_hash(output_root / name) for name in
                    ("specification.json", "report.json", frame_filename, Path(frame_filename).with_suffix(".json").name)}
         manifest = {"schema_version": 1, "status": "complete", "started_at": started_at,
-                    "completed_at": utc_now(), "input": {"path": str(input_path.resolve()), "sha256": input_hash},
+                    "completed_at": utc_now(), "input": input_provenance,
                     "specification_sha256": spec_hash, "code_revision": revision,
                     "source_hashes": source_hashes, "outputs": outputs,
                     "environment": {"python": platform.python_version(),

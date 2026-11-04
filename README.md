@@ -503,3 +503,15 @@ the estimator's conditional interval. Inspect both diagnostics and the bootstrap
 `status="ok"` alone does not establish data-only estimability or player-skill coverage.
 
 Run `python -m unittest tests.test_inference_contrast_uncertainty -q`.
+
+## Frozen synthetic calibration bundles
+
+`study_io.run_calibration_file(specification_path, output_root)` accepts schema version 1
+and a `calibration` object containing `CalibrationSpec` fields. It saves exact protocol
+bytes, report, trial parquet and metadata through the shared non-overwriting bundle writer.
+The manifest declares `input={"kind":"synthetic"}`: the generating code and protocol are
+the input provenance. Source and specification changes during a run prevent completion;
+errors leave `failure.json`. Unknown fields, duplicate keys and invalid protocols fail
+before creating outputs. A completed study can validly report no available intervals.
+
+Run `python -m unittest tests.test_inference_calibration_io -q`.

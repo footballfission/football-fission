@@ -960,3 +960,17 @@ SVD is introduced. Structural estimability, observed domain support and conditio
 resampling uncertainty answer different questions and remain separately reported.
 A bootstrap status of ok means its estimator workflow completed, not that player effects
 are identified by the data or its interval has calibrated DGP-parameter coverage.
+
+## Frozen synthetic experiment provenance
+
+Known-truth calibration uses the existing artifact publication boundary with no external
+input file. Its manifest explicitly declares input kind synthetic, while retaining exact
+specification bytes, source hashes, code revision, package versions, thread settings and
+output hashes. The trial frame is saved as trials.parquet with the common metadata sidecar.
+Real-data workflow input provenance and predicate filtering retain their prior behavior.
+
+The calibration schema accepts only schema_version 1 and a calibration object, validated
+before output creation. Existing output roots are refused; source/specification mutation
+or nonfinite report values leave failure.json without a complete manifest. No simulation
+result can establish real-player coverage by completing the workflow. No external data is
+read, no network is used, and no synthetic input hash is disguised as an NFL dataset.
