@@ -176,14 +176,23 @@ def conservation(panel, candidates_frame):
     require_columns(panel, ("game_id", "team", "targets", "candidates", "candidate_targets", "other_targets"),
                     "conservation")
     require_columns(candidates_frame, TEAM_GAME_KEYS + ("targets",), "conservation")
+    require_unique(panel, TEAM_GAME_KEYS, 'conservation team games')
+    orphan = candidates_frame.join(panel.select(TEAM_GAME_KEYS), on=list(TEAM_GAME_KEYS), how='anti')
+    if orphan.height:
+        raise ValueError('conservation: candidate group has no matching team game')
     counted = candidates_frame.group_by("game_id", "team").agg(
-        pl.len().alias("candidates"), pl.col("targets").sum().alias("candidate_targets")
+        pl.len().alias("_observed_candidates"), pl.col("targets").sum().alias("_observed_candidate_targets")
     )
-    merged = panel.drop("candidates", "candidate_targets").join(counted, on=["game_id", "team"], how="left")
+    merged = panel.join(counted, on=["game_id", "team"], how="left", validate='1:1')
     merged = merged.with_columns(
-        pl.col("candidates").fill_null(0).cast(pl.Int32),
-        pl.col("candidate_targets").fill_null(0).cast(pl.Int32),
+        pl.col("_observed_candidates").fill_null(0),
+        pl.col("_observed_candidate_targets").fill_null(0),
     )
+    mismatch = merged.filter(
+        (pl.col('candidates') != pl.col('_observed_candidates')).fill_null(True)
+        | (pl.col('candidate_targets') != pl.col('_observed_candidate_targets')).fill_null(True))
+    if mismatch.height:
+        raise ValueError('conservation: stored candidate counts or targets disagree with candidate rows')
     negative = merged.filter(pl.col("other_targets") < 0)
     if negative.height:
         first = negative.row(0, named=True)
@@ -206,7 +215,7 @@ def conservation(panel, candidates_frame):
         "candidate_targets": int(merged["candidate_targets"].sum()),
         "other_targets": int(merged["other_targets"].sum()),
         "team_games_with_other": merged.filter(pl.col("other_targets") > 0).height,
-        "candidates": counted["candidates"].sum(),
+        "candidates": counted["_observed_candidates"].sum(),
     }
 
 

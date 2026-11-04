@@ -214,6 +214,22 @@ class Conservation(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "do not add up to the team total"):
             conservation(broken, self.candidates_frame)
 
+    def test_stored_candidate_counts_and_totals_must_match_candidate_rows(self):
+        for column in ('candidates', 'candidate_targets'):
+            broken = self.panel.with_columns((pl.col(column) + 1).alias(column))
+            with self.subTest(column=column), self.assertRaisesRegex(ValueError, 'stored candidate'):
+                conservation(broken, self.candidates_frame)
+        broken = self.panel.with_columns(pl.lit(None).alias('candidates'))
+        with self.assertRaisesRegex(ValueError, 'stored candidate'):
+            conservation(broken, self.candidates_frame)
+
+    def test_orphan_candidate_groups_and_duplicate_team_games_are_refused(self):
+        orphan = self.candidates_frame.head(1).with_columns(pl.lit('not_in_panel').alias('game_id'))
+        with self.assertRaisesRegex(ValueError, 'no matching team game'):
+            conservation(self.panel, pl.concat([self.candidates_frame, orphan]))
+        with self.assertRaisesRegex(ValueError, 'duplicate key'):
+            conservation(pl.concat([self.panel, self.panel.head(1)]), self.candidates_frame)
+
 
 class Panel(unittest.TestCase):
     def test_the_panel_carries_the_declared_columns(self):

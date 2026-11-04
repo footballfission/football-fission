@@ -1091,3 +1091,13 @@ shares nor availability, and adds no share-parameter uncertainty. Historical ros
 status is not timestamp certification; supplied rosters are scenario assumptions. The
 sampler claims exact opportunity conservation, not learned target earning, operational
 forecast improvement, causal replacement effects or route-count consistency.
+
+## Candidate summaries are part of conservation
+
+The conservation gate now retains the stored candidates and candidate_targets while
+comparing them against separately named observed aggregates. Previously it discarded those
+columns before joining recomputed values, so stale summaries could pass despite the
+function's documented contract. Null or differing summaries, duplicate team-game keys and
+candidate groups absent from the panel are refused. Valid panel totals, zero-candidate
+games and explicit OTHER residuals retain their behavior. Allocation exposure calculations
+may rely on this reconciliation; this change introduces no model or new target counts.

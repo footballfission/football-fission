@@ -659,3 +659,11 @@ rosters and probabilities, with no certification that historical rosters were kn
 pregame cutoff and no added parameter uncertainty. It does not enforce target/route bounds.
 
 Run `python -m unittest tests.test_inference_allocation -q`.
+
+## Candidate summary reconciliation
+
+`panels.conservation` compares stored candidate counts and target totals with the actual
+candidate rows before accepting pool closure. It rejects null/stale summaries, candidate
+groups without a panel team game and duplicate panel keys. It preserves valid zero-candidate
+and OTHER-only pools. This closes a gap where recomputation could previously hide an
+inconsistent stored summary. Run `python -m unittest tests.test_inference_panels -q`.
