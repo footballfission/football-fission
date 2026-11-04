@@ -79,14 +79,17 @@ class FittedProportionalAllocation:
         pools = {tuple(key): i for i, key in enumerate(panel.select(TEAM_GAME_KEYS).iter_rows())}
         rates, memberships = [], []
         pool_rates = [[self.other_rate] for _ in range(panel.height)]
-        unseen_players = unseen_positions = 0
+        unseen_player_rows = unseen_positions = 0
+        unseen_players = set()
         for game, team, player, position in candidates.select(*TEAM_GAME_KEYS, 'player_id', 'position').iter_rows():
             prior = self.position_shares.get(position, self.global_share)
             targets, exposure = self.player_counts.get(player, (0.0, 0.0))
             rates.append((targets + self.prior_exposure * prior) / (exposure + self.prior_exposure))
             memberships.append(pools[(game, team)])
             pool_rates[memberships[-1]].append(rates[-1])
-            unseen_players += int(player not in self.player_counts)
+            if player not in self.player_counts:
+                unseen_players.add(player)
+                unseen_player_rows += 1
             unseen_positions += int(position not in self.position_shares)
         rates = np.asarray(rates, dtype=float)
         memberships = np.asarray(memberships, dtype=int)
@@ -96,7 +99,8 @@ class FittedProportionalAllocation:
                 'other_shares': self.other_rate / denominators,
                 'candidate_keys': candidates.select(*CANDIDATE_KEYS, 'player_id'),
                 'team_game_keys': panel.select(TEAM_GAME_KEYS),
-                'unseen_players': unseen_players, 'unseen_position_rows': unseen_positions,
+                'unseen_players': len(unseen_players), 'unseen_player_rows': unseen_player_rows,
+                'unseen_position_rows': unseen_positions,
                 'condition': 'supplied_roster_with_training_only_target_exposure',
                 'note': 'proportional redistribution baseline; no learned availability or substitution '
                         'response; weekly ACT status is not pregame timestamp certification'}

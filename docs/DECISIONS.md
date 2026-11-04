@@ -1123,3 +1123,11 @@ redistribution benchmark, not a learned injury response. Historical ACT status i
 scenario input, not proof of pregame availability. Fixed-rate multinomial draws carry no
 share-parameter uncertainty. Chronological prediction and calibration must be evaluated
 before any improvement or player-skill interpretation is claimed.
+
+## Unseen allocation identities versus roster rows
+
+The first cache smoke run exposed that unseen_players counted candidate-game appearances,
+which could be mistaken for unique players. The diagnostic now reports distinct unseen IDs
+under unseen_players and preserves repeated appearances under unseen_player_rows. Position
+fallback remains explicitly row-based. Fitted rates and probabilities are unchanged; this
+fix prevents future research reports from conflating player identities with exposures.

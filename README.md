@@ -690,3 +690,7 @@ adds no parameter uncertainty and does not certify pregame roster publication or
 player talent. It has not yet demonstrated a forecast improvement.
 
 Run `python -m unittest tests.test_inference_allocation_baseline -q`.
+
+Allocation fallback diagnostics distinguish `unseen_players` (distinct player IDs) from
+`unseen_player_rows` (candidate-game rows), alongside `unseen_position_rows`. Repeated future
+appearances by one new player count once as an identity. This does not change probabilities.

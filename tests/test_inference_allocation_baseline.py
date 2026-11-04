@@ -46,6 +46,7 @@ class ProportionalAllocation(unittest.TestCase):
         np.testing.assert_allclose(result['shares'], rates / denominator)
         np.testing.assert_allclose(result['other_shares'], [0.4 / denominator])
         self.assertEqual(result['unseen_players'], 1)
+        self.assertEqual(result['unseen_player_rows'], 1)
         self.assertEqual(result['unseen_position_rows'], 1)
         self.assertEqual(fit.report()['train_through'], {'season': 2024, 'week': 2})
 
@@ -58,6 +59,15 @@ class ProportionalAllocation(unittest.TestCase):
         self.assertGreater(remaining['shares'][0], full['shares'][1])
         empty = fit.predict(panel, players.head(0))
         np.testing.assert_array_equal(empty['other_shares'], [1.0])
+
+    def test_repeated_unseen_player_rows_do_not_inflate_identity_count(self):
+        panel, players = prediction()
+        panel = pl.concat([panel, panel.with_columns(pl.lit('g4').alias('game_id'), pl.lit(4).alias('week'))])
+        players = pl.concat([players, players.with_columns(pl.lit('g4').alias('game_id'), pl.lit(4).alias('week'))])
+        result = self.fit().predict(panel, players)
+        self.assertEqual(result['unseen_players'], 1)
+        self.assertEqual(result['unseen_player_rows'], 2)
+        self.assertEqual(result['unseen_position_rows'], 2)
 
     def test_predictions_are_keyed_order_invariant_and_feed_joint_sampler(self):
         panel, players = training()
