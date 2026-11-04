@@ -821,3 +821,13 @@ Context categories absent from a later design are recorded because coarse shared
 do not ensure positivity on every covariate. A sign agreement is descriptive and no
 interval for between-period change, player leaderboard, or claim of persistent skill is
 constructed. Team-local effects cannot be read as league-wide player grades.
+
+## Shared offline publication boundary
+
+Offline inference workflows share one bundle-writing boundary for exclusive output paths,
+source/input/specification consistency checks, exact protocol copies, atomic report and
+frame writes, failure records, numerical provenance, and the final complete manifest.
+Each public workflow validates its own protocol before reaching that boundary. The
+forecast-study API retains its artifact names and semantics; a retrospective comparison
+may name its saved frame as a reference population instead of predictions. A complete
+manifest certifies a completed workflow, not that a scientific comparison is estimable.

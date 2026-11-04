@@ -94,6 +94,15 @@ def run_study_file(input_path, specification_path, output_root):
     """
     input_path, specification_path, output_root = map(Path, (input_path, specification_path, output_root))
     raw, spec, contrasts, contrast_draws = _read_specification(specification_path)
+    return _run_bundle(
+        input_path, specification_path, output_root, raw=raw, requested_seasons=spec.requested_seasons,
+        execute=lambda table: run_passing_study(table, spec=spec, contrasts=contrasts, contrast_draws=contrast_draws))
+
+
+def _run_bundle(input_path, specification_path, output_root, *, raw, requested_seasons, execute,
+                 frame_key="predictions", frame_filename="predictions.parquet", team=None):
+    """Common publication boundary; public workflows validate their own protocol first."""
+    input_path, specification_path, output_root = map(Path, (input_path, specification_path, output_root))
     if not input_path.is_file():
         raise FileNotFoundError(input_path)
     output_root.mkdir(parents=True, exist_ok=False)
@@ -104,16 +113,18 @@ def run_study_file(input_path, specification_path, output_root):
         started_at, revision = utc_now(), _revision()
         (output_root / "specification.json").write_bytes(raw)
         # Predicate pushdown excludes undeclared/reserved seasons before materialization.
-        table = pl.scan_parquet(input_path).filter(pl.col("season").is_in(spec.requested_seasons)).collect()
-        result = run_passing_study(table, spec=spec, contrasts=contrasts, contrast_draws=contrast_draws)
+        lazy = pl.scan_parquet(input_path).filter(pl.col("season").is_in(requested_seasons))
+        if team is not None:
+            lazy = lazy.filter(pl.col("team") == team)
+        result = execute(lazy.collect())
         if (_source_hashes() != source_hashes or content_hash(input_path) != input_hash or
                 content_hash(specification_path) != spec_hash):
             raise ValueError("source, input or specification changed during the study")
         json.dumps(result["report"], allow_nan=False)
         atomic_json(output_root / "report.json", result["report"])
-        write_frame(output_root / "predictions.parquet", result["predictions"])
+        write_frame(output_root / frame_filename, result[frame_key])
         outputs = {name: content_hash(output_root / name) for name in
-                   ("specification.json", "report.json", "predictions.parquet", "predictions.json")}
+                   ("specification.json", "report.json", frame_filename, Path(frame_filename).with_suffix(".json").name)}
         manifest = {"schema_version": 1, "status": "complete", "started_at": started_at,
                     "completed_at": utc_now(), "input": {"path": str(input_path.resolve()), "sha256": input_hash},
                     "specification_sha256": spec_hash, "code_revision": revision,
