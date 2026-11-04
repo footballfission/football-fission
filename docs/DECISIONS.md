@@ -1071,3 +1071,23 @@ comparison is added-situation minus reference joint-model log loss on exactly ma
 plays, with paired whole-game bootstrap uncertainty. Context-only and transfer-cohort
 differences are secondary. Protocols, populations and priors are frozen before reading
 these results. Prior development inspection of 2024/2025 precludes an untouched claim.
+
+## Conservation of sampled target opportunity
+
+The team-opportunity pathway begins allocation with a conditional multinomial primitive.
+It consumes label-free team/candidate keys, externally supplied integer team/draw totals,
+candidate probabilities and an explicit OTHER probability. Shares align with input rows;
+internal team/game and player-ID sorting makes seeded draws invariant to arbitrary row
+ordering. Returned matrices preserve caller row/draw identity and carry their key frames.
+Every team/draw total is conserved exactly; zero-share players receive exactly zero, and
+an empty roster must give all mass to OTHER. Both offenses in one game are distinct pools.
+Probabilities outside [0,1] or sums outside 1e-10 of one fail; only in-tolerance floating
+roundoff is normalized. Duplicated candidates, unmatched team games, observed target
+labels in prediction frames and invalid count matrices fail.
+
+Conditional multinomial competition is not the full teammate dependence model: supplied
+shared team-volume variation can induce positive covariance. This slice learns neither
+shares nor availability, and adds no share-parameter uncertainty. Historical roster ACT
+status is not timestamp certification; supplied rosters are scenario assumptions. The
+sampler claims exact opportunity conservation, not learned target earning, operational
+forecast improvement, causal replacement effects or route-count consistency.

@@ -610,3 +610,13 @@ reference coverage. Existing contexts and frozen protocols are unchanged. Chrono
 selection and context diagnostics may declare the variant; its component increment is
 relative to expanded context. These are target-conditional associations, not causal credit.
 Run `python -m unittest tests.test_inference_situation_model -q`.
+
+## Joint target allocation primitive
+
+`allocation.sample_target_allocation` conserves each supplied integer team/draw total
+across candidate targets and an explicit OTHER residual, retaining row/draw identities.
+It consumes label-free prediction rosters with declared probabilities, validates pool
+closure and samples jointly. Team/game and player-ID sorting removes arbitrary row-order
+effects. This establishes the conservation gate for target allocation, while shares,
+availability and volume remain supplied inputs. No learned allocation or pregame roster
+timestamp certification is claimed. Run `python -m unittest tests.test_inference_allocation -q`.

@@ -638,3 +638,24 @@ loss; negative favors added situation. Context-only and identity-transfer differ
 are secondary diagnostics. The target population is unchanged. These previously inspected
 seasons are development evidence, with no untouched-holdout or player-skill claim.
 Run each with `study-passing --input ... --spec ... --output-root <fresh-directory>`.
+
+## Joint target allocation sampler
+
+`allocation.sample_target_allocation(panel, candidates, team_draws, shares=...,
+other_shares=..., seed=0)` allocates every supplied team target draw jointly across the
+candidate roster and an explicit OTHER category. Probability arrays align with input
+rows; each pool must sum to one within 1e-10. Only numerical roundoff is normalized.
+Prediction frames must be label-free, keys unique, and team draws nonnegative integers.
+
+Returned candidate and OTHER sample matrices preserve input row and draw identity, with
+key frames alongside them. Every team/draw conserves its total exactly, including zero
+pools and empty rosters. Zero-share candidates always receive zero. Canonical key sorting
+makes seeded allocations invariant to arbitrary team/candidate row order. Both offenses
+in a game retain separate pools. Fixed-volume allocation creates competition; supplied
+shared volume variation can produce positive teammate covariance.
+
+This primitive fits no share, volume or availability model. It is conditional on supplied
+rosters and probabilities, with no certification that historical rosters were known at a
+pregame cutoff and no added parameter uncertainty. It does not enforce target/route bounds.
+
+Run `python -m unittest tests.test_inference_allocation -q`.
