@@ -928,3 +928,23 @@ chosen player interval level. A small replication count cannot establish calibra
 The returned trial frame retains seeds, truth, estimates, interval endpoints, coverage,
 status and context-failure counts for auditing. Unexpected errors propagate. Reports are
 marked synthetic and never verify real-player coverage or causal identification.
+
+## Data-only player contrast estimability
+
+A connected QB/receiver graph and common coarse cells are insufficient when player and
+continuous context terms alias. The contrast audit uses QR followed by SVD of the reduced
+training design, including an intercept, to determine its row space without materializing
+a tall left-singular-vector matrix. Numerical rank uses singular values above the largest
+singular value times the declared rtol (default 1e-10). Predictor residuals are normalized
+by max(1, predictor norm) and compared with the same tolerance. Dummy gauge redundancy is
+permitted: full column rank is not required for a particular contrast to be estimable.
+
+The average log-odds arm difference is checked as a linear functional. Each probability
+arm's rowwise linear predictors are checked separately; their estimability is sufficient
+for a probability contrast to be determined, rather than a necessary condition for every
+possible cancellation. No coefficient, prior or observed outcome enters this audit. A
+prior-dependent result leaves regularized predictions defined but exposes that the data
+alone do not determine the requested functional under the modeled design. Passing does
+not prove causal identification, dense support, numerical precision, calibrated intervals
+or real-player validity. Parametric extrapolation can be structurally estimable while
+failing the separate observed category/range or coarse-exposure screens.

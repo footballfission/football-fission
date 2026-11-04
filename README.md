@@ -476,3 +476,19 @@ shows strong-shrinkage intervals missing the DGP contrast despite complete
 resampling support, plus a connected but depth-confounded failure case. These
 results document a limit of conditional estimator intervals, not NFL player
 coverage or a reason to select priors from this toy experiment.
+
+## Data-only contrast estimability
+
+`estimability.audit_contrast_estimability(fitted, population, identity=..., left=...,
+right=..., fixed=...)` checks requested predictors against the training design's row
+space, including its intercept. It reports numerical rank, nullity, per-arm failed rows,
+and whether the mean log-odds contrast is estimable without prior information. Redundant
+dummy columns alone do not invalidate a contrast. Probability-arm checks are a sufficient
+condition for the probability contrast, distinct from a linear log-odds difference.
+
+The audit ignores fitted coefficients and penalties. Passing establishes model-based
+structural estimability, not causal identification, precision, context density, or interval
+coverage. `prior_dependent` exposes a restriction supplied by regularization; it does not
+make the regularized point estimate undefined. Numerical tolerance is recorded explicitly.
+
+Run `python -m unittest tests.test_inference_estimability -q`.
