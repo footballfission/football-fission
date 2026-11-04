@@ -948,3 +948,15 @@ alone do not determine the requested functional under the modeled design. Passin
 not prove causal identification, dense support, numerical precision, calibrated intervals
 or real-player validity. Parametric extrapolation can be structurally estimable while
 failing the separate observed category/range or coarse-exposure screens.
+
+## Estimability alongside conditional contrast uncertainty
+
+Every bootstrap contrast reports the original-design row-space audit, including early
+returns for disconnection, nonconvergence or coarse support. The audit uses the same
+reference population and fixed partner as the estimator. It is diagnostic: a structurally
+prior-dependent contrast can still have a completed sampling interval for the regularized
+estimator. No draws or fitted values change based on this diagnostic, and no per-resample
+SVD is introduced. Structural estimability, observed domain support and conditional
+resampling uncertainty answer different questions and remain separately reported.
+A bootstrap status of ok means its estimator workflow completed, not that player effects
+are identified by the data or its interval has calibrated DGP-parameter coverage.

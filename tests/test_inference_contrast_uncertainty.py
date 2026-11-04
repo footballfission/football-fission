@@ -6,6 +6,7 @@ import polars as pl
 
 from hierarchical_football.inference import design
 from hierarchical_football.inference.partial_pooling import fit_block_completion
+from hierarchical_football.inference.simulation import simulate_passing
 from tests.inference_fixtures import passing_frame
 
 
@@ -23,6 +24,20 @@ def crossed_targets(seed=0, games=16):
 
 
 class ContrastUncertainty(unittest.TestCase):
+    def test_original_estimability_is_reported_without_redefining_the_bootstrap(self):
+        data = simulate_passing(scenario='depth_confounded', games=6, repeats=3, seed=4)
+        truth = data['truth']
+        report = design.bootstrap_contrast(
+            data['train'], data['population'], identity=truth['identity'], left=truth['left'],
+            right=truth['right'], fixed=truth['fixed'], draws=20, seed=9, min_rows=1,
+            identity_penalties={'qb_id': 100, 'receiver_id': 100})
+        self.assertEqual(report['status'], 'ok')
+        self.assertIsNotNone(report['interval'])
+        self.assertEqual(report['estimability']['status'], 'prior_dependent')
+        self.assertFalse(report['estimability']['log_odds_contrast']['estimable'])
+        self.assertEqual(report['reference_context']['windows']['fit']['rows_with_any_failure'], 0)
+        self.assertEqual(report['resample_context']['draws_with_failures'], 0)
+
     def test_resamples_expose_lost_opponent_categories_and_numeric_ranges(self):
         train = crossed_targets(games=4).with_columns(
             pl.when(pl.col("game_id") == "g0").then(pl.lit("rare")).otherwise(pl.lit("common")).alias("defteam"),
@@ -54,6 +69,7 @@ class ContrastUncertainty(unittest.TestCase):
         report = self.run_contrast()
         self.assertEqual(report, self.run_contrast())
         self.assertEqual(report["status"], "ok")
+        self.assertEqual(report['estimability']['status'], 'estimable')
         self.assertGreater(report["interval"]["lower"], 0)
         self.assertGreater(report["contrast"]["difference"], 0.4)
         self.assertEqual(report["successful_draws"], 20)
@@ -65,6 +81,7 @@ class ContrastUncertainty(unittest.TestCase):
         report = self.run_contrast(train)
         self.assertEqual(report["status"], "disconnected_players")
         self.assertIsNone(report["interval"])
+        self.assertEqual(report['estimability']['status'], 'prior_dependent')
         # The same successful partnerships admit incompatible credit assignments.
         terms = []
         for qb, receiver in ((0.1, 100), (100, 0.1)):

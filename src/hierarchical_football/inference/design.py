@@ -30,6 +30,7 @@ import polars as pl
 
 from .contracts import PASSING_CONTRACT, UNKNOWN, label, missing, validate
 from .context_support import model_context_population
+from .estimability import audit_contrast_estimability
 from .partial_pooling import fit_block_completion
 
 AIR_YARDS_EDGES = (0.0, 5.0, 10.0, 15.0, 20.0, 30.0)
@@ -121,7 +122,8 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
 
     No interval is emitted for disconnected players or incomplete resamples. This measures
     sampling variation of a regularized contrast, not causal identification, selection
-    uncertainty, uncertainty in Q, or a Bayesian posterior.
+    uncertainty, uncertainty in Q, or a Bayesian posterior. The original-design
+    estimability audit is diagnostic and does not redefine the regularized estimator.
     """
     if identity not in ("qb_id", "receiver_id"):
         raise ValueError("bootstrap_contrast identity must be qb_id or receiver_id")
@@ -155,6 +157,8 @@ def bootstrap_contrast(train, population, *, identity, left, right, fixed=None,
               "identity_penalties": dict(identity_penalties), "context": context,
               "context_penalty": context_penalty,
               "opponent_penalty": opponent_penalty,
+              "estimability": audit_contrast_estimability(
+                  fitted, population, identity=identity, left=left, right=right, fixed=fixed),
               "reference_context": model_context_population({"fit": train}, population, context=context)["report"],
               "resample_context": {"evaluated_draws": 0, "draws_with_failures": 0, "max_failed_rows": 0,
                                     "mean_failed_reference_share": None, "category_draws": {},

@@ -492,3 +492,14 @@ coverage. `prior_dependent` exposes a restriction supplied by regularization; it
 make the regularized point estimate undefined. Numerical tolerance is recorded explicitly.
 
 Run `python -m unittest tests.test_inference_estimability -q`.
+
+## Contrast structural estimability diagnostics
+
+`bootstrap_contrast` includes `estimability` for the original fitting design and the
+requested reference arms, including reports returned early for disconnected players or
+unsupported cells. A completed conditional bootstrap can coexist with `prior_dependent`
+structural predictions. The audit does not remove draws, alter point estimates or redefine
+the estimator's conditional interval. Inspect both diagnostics and the bootstrap status;
+`status="ok"` alone does not establish data-only estimability or player-skill coverage.
+
+Run `python -m unittest tests.test_inference_contrast_uncertainty -q`.
