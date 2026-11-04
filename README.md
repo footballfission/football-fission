@@ -201,6 +201,11 @@ explicit status. These intervals do not quantify causal identification or tuning
 
 Run the focused checks with `python -m unittest tests.test_inference_contrast_uncertainty -q`.
 
+The [context sensitivity experiment](docs/PASSING_CONTEXT_SUPPORT_RESULTS.md) finds
+nearly unchanged Philadelphia point contrasts after restricting Q, but frequent
+opponent-category loss during game resampling. Interval completion does not certify
+context coverage or calibrated uncertainty about player skill.
+
 ## Chronological passing studies
 
 `study.run_passing_study(table, spec=PassingStudySpec(...))` composes inner selection,

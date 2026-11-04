@@ -544,3 +544,10 @@ examples include Philadelphia WRs Brown/Smith with Hurts and Baltimore TEs Andre
 with Jackson, selected without fitted outcome rankings.
 
 Run `python -m unittest tests.test_inference_shared_population tests.test_inference_comparisons tests.test_inference_comparison_io -q`.
+
+The [reference-context sensitivity results](PASSING_CONTEXT_SUPPORT_RESULTS.md)
+compare the coarse and model-context policies on the same Philadelphia fits.
+The stricter reference retains 152 of 687 original targets; point contrasts
+change little, while 199/200 early and 197/200 later game refits still lose
+reference context. These diagnostics motivate known-truth simulation before
+claiming calibrated uncertainty for player skill.
