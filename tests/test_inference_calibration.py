@@ -18,10 +18,12 @@ class ContrastCalibrationTests(unittest.TestCase):
         self.assertFalse(result['report']['real_player_coverage_verified'])
         summaries = result['report']['summaries']
         self.assertEqual([s['available_intervals'] for s in summaries], [2, 2])
+        self.assertEqual(summaries[0]['estimability_statuses'], {'estimable': 2})
         self.assertGreater(abs(summaries[1]['bias']), abs(summaries[0]['bias']) + 0.1)
         self.assertEqual(summaries[1]['covered_intervals'], 0)
         self.assertGreater(summaries[1]['coverage_wilson_95']['upper'], 0)
         rows = result['trials'].to_dicts()
+        self.assertTrue(all(row['log_odds_estimable'] and row['probability_arms_estimable'] for row in rows))
         self.assertEqual(rows[0]['dataset_seed'], rows[1]['dataset_seed'])
         self.assertEqual(rows[0]['bootstrap_seed'], rows[1]['bootstrap_seed'])
         self.assertNotEqual(rows[0]['dataset_seed'], rows[2]['dataset_seed'])
@@ -33,6 +35,7 @@ class ContrastCalibrationTests(unittest.TestCase):
                                                 penalties=(1.0,), scenarios=('nested',)))
         summary = result['report']['summaries'][0]
         self.assertEqual(summary['statuses'], {'disconnected_players': 2})
+        self.assertEqual(summary['estimability_statuses'], {'prior_dependent': 2})
         self.assertEqual(summary['available_intervals'], 0)
         self.assertIsNone(summary['coverage_given_available'])
         self.assertIsNone(summary['coverage_wilson_95'])
@@ -53,6 +56,7 @@ class ContrastCalibrationTests(unittest.TestCase):
         self.assertEqual(s['interval_availability'], 0.5)
         self.assertEqual(s['coverage_given_available'], 1.0)
         self.assertEqual(s['covered_over_all_trials'], 0.5)
+        self.assertEqual(s['estimability_statuses'], {'not_evaluated': 2})
         self.assertAlmostEqual(s['bias'], 0.2 - result['report']['truth_by_scenario']['crossed']['difference'])
         self.assertAlmostEqual(s['mean_interval_width'], 1.0)
 
@@ -74,10 +78,19 @@ class ContrastCalibrationTests(unittest.TestCase):
         s = result['report']['summaries'][0]
         self.assertEqual(s['statuses'], {'single_outcome': 2})
         self.assertEqual(s['point_estimates'], 0)
+        self.assertEqual(s['estimability_statuses'], {'not_evaluated': 2})
         self.assertIsNone(s['bias'])
         self.assertIsNone(s['rmse'])
         self.assertEqual(result['trials'].height, 2)
         json.dumps(result['report'], allow_nan=False)
+
+    def test_depth_confounding_is_visible_even_when_every_interval_completes(self):
+        result = run_calibration(CalibrationSpec(trials=2, draws=20, games=3, repeats=2,
+                                                penalties=(100.0,), scenarios=('depth_confounded',)))
+        summary = result['report']['summaries'][0]
+        self.assertEqual(summary['available_intervals'], 2)
+        self.assertEqual(summary['estimability_statuses'], {'prior_dependent': 2})
+        self.assertTrue(all(not row['log_odds_estimable'] for row in result['trials'].to_dicts()))
 
 
 if __name__ == '__main__':

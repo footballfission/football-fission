@@ -70,7 +70,8 @@ def _summarize(rows):
             'coverage_given_available': covered / len(intervals) if intervals else None,
             'coverage_wilson_95': _wilson(covered, len(intervals)),
             'mean_interval_width': float(np.mean([r['upper'] - r['lower'] for r in intervals]))
-            if intervals else None, 'statuses': dict(Counter(row['status'] for row in rows))}
+            if intervals else None, 'statuses': dict(Counter(row['status'] for row in rows)),
+            'estimability_statuses': dict(Counter(row['estimability_status'] or 'not_evaluated' for row in rows))}
 
 
 def run_calibration(spec):
@@ -103,10 +104,14 @@ def run_calibration(spec):
                         context='linear', context_penalty=1.0, draws=spec.draws,
                         seed=bootstrap_seed, level=spec.level, min_rows=1)
                 interval = result['interval']
+                estimability = result.get('estimability', {})
                 rows.append({'scenario': scenario, 'trial': trial, 'penalty': penalty,
                              'dataset_seed': dataset_seed, 'bootstrap_seed': bootstrap_seed,
                              'rows': data['train'].height, 'truth': truth['difference'],
                              'status': result['status'],
+                             'estimability_status': estimability.get('status'),
+                             'log_odds_estimable': estimability.get('log_odds_contrast', {}).get('estimable'),
+                             'probability_arms_estimable': estimability.get('probability_arms_estimable'),
                              'estimate': result.get('contrast', {}).get('difference'),
                              'lower': interval['lower'] if interval else None,
                              'upper': interval['upper'] if interval else None,
@@ -117,7 +122,9 @@ def run_calibration(spec):
                  for scenario in spec.scenarios for penalty in spec.penalties]
     frame = pl.DataFrame(rows, schema_overrides={
         'estimate': pl.Float64, 'lower': pl.Float64, 'upper': pl.Float64,
-        'covered': pl.Boolean, 'context_failure_draws': pl.Int64})
+        'covered': pl.Boolean, 'context_failure_draws': pl.Int64,
+        'estimability_status': pl.String, 'log_odds_estimable': pl.Boolean,
+        'probability_arms_estimable': pl.Boolean})
     return {'trials': frame, 'report': {
         'schema_version': 1, 'synthetic': True, 'real_player_coverage_verified': False,
         'specification': asdict(spec), 'truth_by_scenario': truths,
@@ -126,4 +133,5 @@ def run_calibration(spec):
                           'on interval availability; unavailable trials remain in the availability denominator. '
                           'covered_over_all_trials counts only returned intervals containing truth. '
                           'Wilson 95% bounds describe Monte Carlo coverage uncertainty, not player uncertainty. '
+                          'Estimability diagnostics describe the original design; not_evaluated is not a pass. '
                           'Fixed priors, fixed Q, linear context; no tuning or causal identification.'}}

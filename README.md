@@ -533,3 +533,12 @@ A complete manifest does not mean intervals are calibrated; inspect coverage, av
 Monte Carlo bounds and the declared DGP. The console explicitly marks synthetic runs.
 
 Run `python -m unittest tests.test_inference_calibration_io -q`.
+
+## Calibration estimability diagnostics
+
+Calibration trial tables retain original-design estimability status, log-odds estimability
+and probability-arm estimability. Summaries count these statuses separately from bootstrap
+completion. A depth-confounded scenario can return every conditional interval while all
+contrasts are structurally prior dependent. Single-outcome trials have no fitted audit and
+are explicitly `not_evaluated`, which never counts as passing. These fields do not change
+simulated outcomes, refits, point estimates, intervals or coverage denominators.

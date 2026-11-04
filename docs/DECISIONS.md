@@ -984,3 +984,13 @@ The console and manifest identify synthetic provenance. This makes known-truth d
 repeatable without a scratch runner, but neither a completed command nor matching toy
 coverage certifies NFL skill uncertainty. Runtime thread settings are established by the
 caller before Python starts and recorded, not changed after numerical libraries import.
+
+## Structural diagnostics in calibration evidence
+
+Synthetic trial tables preserve the original contrast audit's status and separate log-odds
+and probability-arm flags. Summary estimability counts are independent of interval status
+counts: a completed regularized-estimator interval does not imply data-only estimability.
+Single-outcome datasets cannot supply a fitted audit through this workflow and remain
+not_evaluated, never an implicit pass. Existing frozen evidence is not retroactively
+rewritten. This diagnostic addition does not change random seeds, fits or uncertainty
+calculations and does not transform conditional intervals into parameter intervals.
