@@ -848,3 +848,17 @@ WR example and a Baltimore TE example that may have no shared cells. No threshol
 relaxed to manufacture a player conclusion. Bootstrap arm support metadata uses the same
 protocol threshold as shared-population selection. These comparisons use local historical
 rosters to resolve IDs and never rank players or alter forecasting chains.
+
+## Model context domains beyond coarse player cells
+
+Coarse depth/down/direction cells can hide categories the fitted model never saw, notably
+opponents, or numeric values outside a window's observed range. The model-context audit
+checks exactly the declared passing context's categorical source columns and original
+numeric sources of the fixed basis. It keeps only rows inside every window's marginal
+domain. Missing numeric values and windows with no numeric observations cannot certify
+coverage. Observed domains and overlapping failure counts remain visible.
+
+The screen never uses completion outcomes. It does not estimate density, ensure joint
+covariate or player-specific overlap, or remove unmeasured confounding. A value between
+observed numeric endpoints is permitted interpolation even if that exact value was never
+seen. Unknown labels that were actually fitted remain declared categorical levels.

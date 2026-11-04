@@ -398,3 +398,15 @@ The [first supported player comparisons](docs/PASSING_PLAYER_COMPARISON.md) demo
 both an estimable but uncertain Brown/Smith contrast on a narrow shared target mix and
 an Andrews/Likely case with no shared support under the declared rule. These retrospective
 examples expose prior sensitivity and context gaps; they are not player grades.
+
+## Reference model-context support
+
+`context_support.model_context_population(windows, population, context=...)` retains
+reference rows whose modeled categories occur and numeric source values fall inside
+observed ranges in every fitting window. It audits down, direction and declared optional
+position/opponent categories plus depth, field position and distance. Missing/nonfinite
+numeric values fail the screen. Counts, observed domains and retained share are reported;
+per-column failure counts can overlap. Unknown context names and empty fitting windows fail.
+This is marginal domain coverage, not joint density or player-specific causal support.
+
+Run the focused checks with `python -m unittest tests.test_inference_context_support -q`.
