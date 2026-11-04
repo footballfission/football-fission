@@ -571,3 +571,8 @@ saves trial parquet, report, metadata and a complete-last manifest with source h
 runtime settings. Existing outputs are refused. The example's 30 datasets and 50 draws
 per interval are a diagnostic setting, with finite Monte Carlo bounds reported explicitly;
 interpret the first study in [PASSING_CALIBRATION_RESULTS.md](PASSING_CALIBRATION_RESULTS.md).
+
+The [original-design estimability evidence](PASSING_ESTIMABILITY_RESULTS.md) separates
+log-odds contrast estimability from probability-arm estimability on the frozen Philadelphia
+reference populations. Its point estimates reproduce, and the stricter Q passes both
+original-window arm checks; neither result certifies resampling support or skill coverage.

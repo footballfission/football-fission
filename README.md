@@ -542,3 +542,9 @@ completion. A depth-confounded scenario can return every conditional interval wh
 contrasts are structurally prior dependent. Single-outcome trials have no fitted audit and
 are explicitly `not_evaluated`, which never counts as passing. These fields do not change
 simulated outcomes, refits, point estimates, intervals or coverage denominators.
+
+The [original-design Philadelphia audit](docs/PASSING_ESTIMABILITY_RESULTS.md)
+finds the later coarse probability arms prior dependent on 76 reference rows, while
+the stricter Q passes both original-window arm checks. The log-odds contrast passes
+in both cases. Passing structural checks does not remove shrinkage bias or establish
+skill-interval coverage.
