@@ -551,3 +551,13 @@ The stricter reference retains 152 of 687 original targets; point contrasts
 change little, while 199/200 early and 197/200 later game refits still lose
 reference context. These diagnostics motivate known-truth simulation before
 claiming calibrated uncertainty for player skill.
+
+## Known-truth contrast uncertainty checkpoint
+
+The [synthetic calibration results](PASSING_CALIBRATION_RESULTS.md) compare
+30 datasets per scenario at fixed player penalties of 1, 100 and 1000. In the
+fully crossed scenario, 27/30 weak-penalty intervals contain the exact contrast,
+versus 0/30 at each stronger penalty. A connected but depth-confounded design
+also yields 0/30 at every penalty despite full bootstrap completion and coarse
+support. These controlled results reveal shrinkage bias and structural aliasing;
+they do not calibrate real-player uncertainty or choose a production prior.

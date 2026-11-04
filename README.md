@@ -470,3 +470,9 @@ are separate fields. Missing point estimates also remain visible. Neither nomina
 level nor a favorable toy result establishes real-player uncertainty calibration.
 
 Run `python -m unittest tests.test_inference_calibration -q`.
+
+The [known-truth calibration experiment](docs/PASSING_CALIBRATION_RESULTS.md)
+shows strong-shrinkage intervals missing the DGP contrast despite complete
+resampling support, plus a connected but depth-confounded failure case. These
+results document a limit of conditional estimator intervals, not NFL player
+coverage or a reason to select priors from this toy experiment.
