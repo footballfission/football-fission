@@ -24,12 +24,15 @@ def parser():
     document.add_argument("--raw-root", type=Path, default=Path("data/raw"))
     document.add_argument("--output-root", type=Path, default=Path("data/processed/inference"))
     document.add_argument("--rusher-scope", choices=sorted(RUSHER_SCOPES), default="backfield")
+    document.add_argument('--include-passing-situation', action='store_true',
+                          help='Attach audited formation, tempo, score and clock context to passing targets')
     return document
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
-    report = build(args.raw_root, args.output_root, args.seasons, rusher_scope=args.rusher_scope)
+    report = build(args.raw_root, args.output_root, args.seasons, rusher_scope=args.rusher_scope,
+                   include_situation=args.include_passing_situation)
     print(json.dumps(prepare_summary(report)))
 
 

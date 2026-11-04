@@ -139,13 +139,15 @@ def _context_report(table, columns):
     return report
 
 
-def passing_targets(pbp, *, positions=None):
+def passing_targets(pbp, *, positions=None, include_situation=False):
     """The canonical targeted-pass table plus the record of what preparation removed.
 
     A kept play is a regular-season pass attempt with a known passer, a known receiver, a
     known team, and a known completion. Sacks, scrambles, throwaways, two-point attempts, and
     aborted plays are excluded because they are not a target a receiver could have converted.
     """
+    if type(include_situation) is not bool:
+        raise ValueError('include_situation must be boolean')
     if not isinstance(pbp, pl.DataFrame):
         raise TypeError(f"play-by-play: expected a polars DataFrame, found {type(pbp).__name__}")
     require_columns(pbp, PASSING_SOURCE_COLUMNS, "play-by-play")
@@ -201,6 +203,9 @@ def passing_targets(pbp, *, positions=None):
         "position_rows_unknown": int(table["position"].eq(UNKNOWN).sum()),
         "seasons": [int(season) for season in seasons],
     }
+    if include_situation:
+        from .situation import attach_passing_situation
+        table, report['situation'] = attach_passing_situation(table, pbp)
     return table, report
 
 
@@ -302,12 +307,14 @@ def rushing_plays(pbp, *, positions=None, rusher_scope="backfield"):
     return table, report
 
 
-def build(raw, output, seasons, *, rusher_scope="backfield"):
+def build(raw, output, seasons, *, rusher_scope="backfield", include_situation=False):
     """Write both canonical tables, their audits, and the manifest of the inputs they came from.
 
     Reading is local only: a missing cached partition raises instead of starting a download, so a
     prepared table always names the partitions and hashes it was built from.
     """
+    if type(include_situation) is not bool:
+        raise ValueError('include_situation must be boolean')
     seasons = sorted({int(season) for season in seasons})
     if not seasons:
         raise ValueError("prepare.build: name at least one season")
@@ -317,12 +324,13 @@ def build(raw, output, seasons, *, rusher_scope="backfield"):
         raise ValueError(f"prepare.build: rusher scope {rusher_scope!r} needs cached rosters_weekly "
                          f"partitions")
     positions = None if rosters.is_empty() else roster_positions(rosters)
-    passing, passing_report = passing_targets(play_by_play, positions=positions)
+    passing, passing_report = passing_targets(play_by_play, positions=positions, include_situation=include_situation)
     rushing, rushing_report = rushing_plays(play_by_play, positions=positions, rusher_scope=rusher_scope)
     report = {
         "built_at": utc_now(),
         "seasons": seasons,
         "rusher_scope": rusher_scope,
+        "include_situation": include_situation,
         "roster_positions_joined": positions is not None,
         "inputs": [{"table_partition": path.relative_to(raw).as_posix(), "sha256": content_hash(path)}
                    for path in sorted(raw.rglob("part.parquet"))
@@ -333,7 +341,8 @@ def build(raw, output, seasons, *, rusher_scope="backfield"):
         "rushing": {"preparation": rushing_report, "coverage": table_coverage(rushing, RUSHING_CONTRACT)},
     }
     write_frame(output / f"{PASSING_CONTRACT.name}.parquet", passing,
-                metadata={"table": PASSING_CONTRACT.name, "seasons": seasons})
+                metadata={"table": PASSING_CONTRACT.name, "seasons": seasons,
+                          "include_situation": include_situation})
     write_frame(output / f"{RUSHING_CONTRACT.name}.parquet", rushing,
                 metadata={"table": RUSHING_CONTRACT.name, "seasons": seasons, "rusher_scope": rusher_scope})
     atomic_json(output / "prepare_report.json", report)

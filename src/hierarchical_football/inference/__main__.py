@@ -28,6 +28,8 @@ def parser():
     command.add_argument("--raw-root", type=Path, default=Path("data/raw"))
     command.add_argument("--output-root", type=Path, default=Path("data/processed/inference"))
     command.add_argument("--rusher-scope", choices=sorted(RUSHER_SCOPES), default="backfield")
+    command.add_argument('--include-passing-situation', action='store_true',
+                         help='Attach audited formation, tempo, score and clock context to passing targets')
     study = commands.add_parser("study-passing", help="Run a frozen passing development specification")
     study.add_argument("--input", required=True, type=Path)
     study.add_argument("--spec", required=True, type=Path)
@@ -60,7 +62,8 @@ def main(argv=None):
         print(json.dumps({"status": manifest["status"], "output_root": str(args.output_root)}))
         return
     print(json.dumps(prepare_summary(
-        build(args.raw_root, args.output_root, args.seasons, rusher_scope=args.rusher_scope))))
+        build(args.raw_root, args.output_root, args.seasons, rusher_scope=args.rusher_scope,
+              include_situation=args.include_passing_situation))))
 
 
 if __name__ == "__main__":

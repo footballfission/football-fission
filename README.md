@@ -573,3 +573,20 @@ These observed pre-play controls are associations, not causal credit. This join 
 does not change any existing model or frozen experiment.
 
 Run `python -m unittest tests.test_inference_situation -q`.
+
+## Optional passing situation preparation
+
+`passing_targets(..., include_situation=True)` and `build(..., include_situation=True)`
+attach the audited four-field pre-play join after the existing target selection and roster
+join. Both preparation entry points accept `--include-passing-situation`, for example:
+
+```powershell
+python -m hierarchical_football.inference prepare --seasons 2022 2023 2024 2025 --raw-root data/raw --output-root data/processed/inference_situation --include-passing-situation
+```
+
+The default passing columns and target population stay the same. The preparation report
+and passing metadata record the option; enabled reports include source matches and missing
+situation counts. Rushing columns stay the same. Requested source fields must exist and
+pass the audited join. Use a separate output directory to retain earlier frozen datasets.
+
+Run `python -m unittest tests.test_inference_situation_preparation tests.test_prepare_script -q`.

@@ -576,3 +576,15 @@ The [original-design estimability evidence](PASSING_ESTIMABILITY_RESULTS.md) sep
 log-odds contrast estimability from probability-arm estimability on the frozen Philadelphia
 reference populations. Its point estimates reproduce, and the stricter Q passes both
 original-window arm checks; neither result certifies resampling support or skill coverage.
+
+## Optional observed pre-play situation
+
+Both `prepare_inference_tables.py` and the package `prepare` command accept
+`--include-passing-situation`. The explicit option attaches shotgun, no-huddle,
+start-of-play score differential and game seconds remaining after canonical target
+selection and roster matching, using the audited source-key join. The build report
+and passing sidecar record the option and enabled reports include missing-context
+counts. It changes passing columns only; original target rows and outcomes remain.
+Use an output such as `data/processed/inference_situation` to preserve frozen inputs.
+This preparation option alone does not change model specifications or establish causal
+player attribution. Run `python -m unittest tests.test_inference_situation_preparation -q`.

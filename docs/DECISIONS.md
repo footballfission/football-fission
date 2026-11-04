@@ -1021,3 +1021,15 @@ nonbinary formation/tempo flags, negative clock values and overwrites are reject
 Flags are nullable Int8 and continuous fields Float64. Extra source rows do not alter the
 target population. Existing preparation and context variants remain unchanged at this
 step. Better controls do not establish causal identification or resolve shrinkage bias.
+
+## Explicit situation preparation option
+
+Pre-play passing context is opt-in at extraction and persistence. The include_situation
+boolean reaches the existing extractor through both preparation command lines, whose
+option parity remains tested. The join happens after target selection and position
+matching, so existing target exclusions, labels, rows and outcomes stay the same. Only the
+passing table gains fields. The build report and passing sidecar record the option, and
+enabled extraction records join/missing-context diagnostics. Missing requested source
+columns fail instead of generating a silently empty situation block. Defaults preserve
+the earlier passing columns; new research runs use a separate output directory rather
+than overwriting the frozen canonical input behind existing evidence.
