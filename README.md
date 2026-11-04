@@ -410,3 +410,19 @@ per-column failure counts can overlap. Unknown context names and empty fitting w
 This is marginal domain coverage, not joint density or player-specific causal support.
 
 Run the focused checks with `python -m unittest tests.test_inference_context_support -q`.
+
+## Comparison reference policy
+
+`PassingComparisonSpec(reference_policy="model_context")` applies marginal model-context
+coverage after the joint player-cell screen and before any estimation. Its final reference
+must have categories and numeric ranges represented in every fitting window. No retained
+rows yields `no_shared_model_context` and no player estimates. The default `coarse` policy
+preserves prior behavior while still reporting the model-context audit. `reference_rows`
+and `reference_share` describe the actual final Q; `support` retains the earlier coarse
+screen's counts, and `context_support` reports the second-stage audit.
+
+`examples/passing_player_context_comparison.json` declares the stricter Philadelphia
+comparison without changing its priors, windows, or exposure threshold. Restricting Q
+changes the comparison population; it does not demonstrate that player ability changed.
+
+Run the focused checks with `python -m unittest tests.test_inference_comparisons -q`.

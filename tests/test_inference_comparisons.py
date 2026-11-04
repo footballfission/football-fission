@@ -14,6 +14,32 @@ def comparison_targets():
 
 
 class TemporalComparisons(unittest.TestCase):
+    def test_model_context_policy_excludes_reference_opponents_unseen_in_later_window(self):
+        _, run = self.api()
+        table = comparison_targets().with_columns(
+            pl.when((pl.col("season") == 2022) & (pl.col("play_id") % 2 == 0))
+            .then(pl.lit("D2")).otherwise(pl.lit("D1")).alias("defteam"))
+        result = run(table, spec=self.spec(context="expanded", opponent_penalty=100,
+                                           reference_policy="model_context"))
+        self.assertEqual(result["reference_population"].height, 240)
+        self.assertEqual(result["report"]["reference_rows"], 240)
+        self.assertEqual(result["report"]["support"]["retained_rows"], 480)
+        self.assertEqual(result["report"]["context_support"]["retained_rows"], 240)
+        self.assertEqual(result["report"]["windows"][1]["reference_context"]["unseen_categorical_rows"], {})
+
+    def test_no_common_modeled_context_declines_estimation_even_with_coarse_support(self):
+        _, run = self.api()
+        table = comparison_targets().with_columns(pl.col("season").cast(pl.String).alias("defteam"))
+        result = run(table, spec=self.spec(context="expanded", opponent_penalty=100,
+                                           reference_policy="model_context"))
+        self.assertEqual(result["report"]["status"], "no_shared_model_context")
+        self.assertEqual(result["report"]["windows"], [])
+        self.assertEqual(result["reference_population"].height, 0)
+
+    def test_unknown_reference_policy_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "reference_policy"):
+            self.spec(reference_policy="best_results")
+
     def api(self):
         self.assertIsNotNone(importlib.util.find_spec("hierarchical_football.inference.comparisons"),
                              "player explanations need supported temporal comparisons")

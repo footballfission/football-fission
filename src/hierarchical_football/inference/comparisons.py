@@ -10,6 +10,7 @@ import polars as pl
 
 from .baselines import PASSING_CONTEXT_COMPONENTS
 from .contracts import PASSING_CONTRACT, validate
+from .context_support import model_context_population
 from .design import bootstrap_contrast, shared_passing_population, standardized_contrast
 from .partial_pooling import fit_block_completion
 
@@ -34,6 +35,7 @@ class PassingComparisonSpec:
     seed: int = 0
     level: float = 0.95
     scale: str = "probability"
+    reference_policy: str = "coarse"
 
     def __post_init__(self):
         object.__setattr__(self, "windows", tuple(tuple(window) for window in self.windows))
@@ -70,6 +72,8 @@ class PassingComparisonSpec:
             raise ValueError("invalid comparison support or bootstrap settings")
         if self.scale not in ("probability", "log_odds"):
             raise ValueError("comparison scale must be probability or log_odds")
+        if self.reference_policy not in ("coarse", "model_context"):
+            raise ValueError("reference_policy must be coarse or model_context")
 
     @property
     def requested_seasons(self):
@@ -98,6 +102,7 @@ def run_passing_comparison(table, *, spec):
     contrast_args = dict(identity=spec.identity, left=spec.left, right=spec.right, fixed=fixed, scale=spec.scale)
     report = {"schema_version": 1, "purpose": "retrospective_comparison", "forecast_evaluation": False,
               "specification": asdict(spec), "windows": [], "summary": None,
+              "context_support": None, "reference_rows": 0, "reference_share": None,
               "reference_seasons": list(spec.windows[0]),
               "interpretation": "team-scoped target conversion associations; no portable talent or causal credit"}
     if not reference.height:
@@ -108,6 +113,15 @@ def run_passing_comparison(table, *, spec):
     population = common["population"]
     report.update(status=common["report"]["status"], support=common["report"])
     if not population.height:
+        report["reference_share"] = 0.0
+        return {"report": report, "reference_population": population}
+    domain = model_context_population(windows, population, context=spec.context)
+    report["context_support"] = domain["report"]
+    if spec.reference_policy == "model_context":
+        population = domain["population"]
+    report.update(reference_rows=population.height, reference_share=population.height / reference.height)
+    if not population.height:
+        report["status"] = "no_shared_model_context"
         return {"report": report, "reference_population": population}
     seeds = np.random.SeedSequence(spec.seed).spawn(len(windows))
     for (name, train), seed_sequence in zip(windows.items(), seeds):

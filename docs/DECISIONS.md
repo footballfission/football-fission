@@ -862,3 +862,17 @@ The screen never uses completion outcomes. It does not estimate density, ensure 
 covariate or player-specific overlap, or remove unmeasured confounding. A value between
 observed numeric endpoints is permitted interpolation even if that exact value was never
 seen. Unknown labels that were actually fitted remain declared categorical levels.
+
+## A declared model-context reference restriction
+
+Historical comparisons can choose coarse player-cell support alone or additionally
+restrict Q to every fitting window's modeled categories and numeric ranges. The choice
+is validated in the protocol before fitting. Both modes report the domain audit; only
+model_context applies it. Existing protocols remain coarse. Final row/share fields refer
+to the actual Q, while earlier-stage support counts remain available without being
+silently overwritten. An empty second-stage population yields no estimates.
+
+The restriction changes an estimand and is not a correction to a player's talent. It
+removes marginal domain failures in original fitting windows but does not ensure joint
+support or that a particular bootstrap resample retains every context category. Shared
+exposure remains retrospective, and this policy does not certify prospective validation.

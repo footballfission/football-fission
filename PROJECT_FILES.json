@@ -28,6 +28,7 @@
     "docs/TEAM_OPPORTUNITY_PLAN.md",
     "examples/passing_context_study.json",
     "examples/passing_player_comparison.json",
+    "examples/passing_player_context_comparison.json",
     "examples/passing_shrinkage_study.json",
     "examples/passing_study.json",
     "examples/passing_unsupported_comparison.json",

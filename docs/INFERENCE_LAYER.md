@@ -529,6 +529,14 @@ between windows. The team-local coefficients do not identify portable player tal
 Later exposures can restrict Q, so these reports are retrospective and are explicitly
 marked `forecast_evaluation=false`.
 
+`reference_policy="model_context"` optionally restricts the shared player-cell population
+to categories and numeric source ranges represented in every original fitting window.
+The default coarse policy preserves the earlier comparison and reports the same domain
+audit without applying it. Final `reference_rows` and `reference_share` describe Q after
+the chosen policy; earlier coarse exposure counts remain in `support`. No final rows
+yields `no_shared_model_context` and no estimates. This is marginal coverage rather than
+joint positivity, and the restriction changes the estimand.
+
 The offline file runner saves the exact specification, report, reference population and
 metadata through the common hashed bundle writer. A complete manifest means the workflow
 finished; inspect the report status to see whether a contrast was estimable. The paired

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "comparison": {
+    "team": "PHI",
+    "identity": "receiver_id",
+    "left": "00-0035676",
+    "right": "00-0036912",
+    "partner": "00-0036389",
+    "windows": [[2022, 2023], [2024, 2025]],
+    "position": "WR",
+    "context": "expanded",
+    "qb_penalty": 100,
+    "receiver_penalty": 100,
+    "opponent_penalty": 100,
+    "sensitivity_penalties": [10, 100, 1000],
+    "min_rows": 5,
+    "draws": 200,
+    "seed": 0,
+    "level": 0.95,
+    "scale": "probability",
+    "reference_policy": "model_context"
+  }
+}
