@@ -1,4 +1,5 @@
 """Repository hygiene: generated and scratch paths stay out of the index."""
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -18,6 +19,27 @@ def ignored(relative_path):
     return result.returncode == 0
 
 
+def tracked_files():
+    result = subprocess.run(["git", "-C", str(ROOT), "ls-files"], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"git ls-files failed: {result.stderr.strip()}")
+    return sorted(line for line in result.stdout.splitlines() if line.strip())
+
+
+class FileInventory(unittest.TestCase):
+    def test_the_inventory_lists_exactly_the_tracked_tree(self):
+        """PROJECT_FILES.json claims to be an inventory, so it is checked as one."""
+        listed = sorted(json.loads((ROOT / "PROJECT_FILES.json").read_text(encoding="utf-8"))["files"])
+        tracked = tracked_files()
+        missing = sorted(set(tracked) - set(listed))
+        stale = sorted(set(listed) - set(tracked))
+        self.assertEqual(
+            (missing, stale), ([], []),
+            "regenerate PROJECT_FILES.json from `git ls-files`: "
+            f"{len(missing)} tracked path(s) not listed {missing[:6]}, "
+            f"{len(stale)} listed path(s) not tracked {stale[:6]}")
+
+
 class IgnoredPaths(unittest.TestCase):
     def test_generated_dataset_partitions_are_ignored(self):
         self.assertTrue(ignored("data/raw/player_stats_week/season=2026/part.parquet"))
@@ -31,9 +53,22 @@ class IgnoredPaths(unittest.TestCase):
         self.assertTrue(ignored("data/raw/ingest_report.json"))
         self.assertTrue(ignored("data/processed/build_report.json"))
 
-    def test_scratch_notes_are_ignored(self):
-        self.assertTrue(ignored("notes/INCREMENTAL_COMMIT_GUIDE.md"))
-        self.assertTrue(ignored("notes/worksheet.md"))
+    def test_every_scratch_directory_the_gitignore_names_is_ignored(self):
+        """The rule and the directory have to agree; asserting a name the rule does not cover proves
+        nothing, because `git check-ignore` answers for paths that do not exist either way.
+
+        The check reads the rules the working tree carries, so it holds whether or not a local rule
+        has been committed yet, and it fails when a directory is named as scratch and then not
+        ignored.
+        """
+        rules = [line.strip().rstrip("/") for line in
+                 (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()]
+        scratch = [rule for rule in rules if rule in ("notes", "local_notes")]
+        self.assertTrue(scratch, "the .gitignore names no scratch directory at all")
+        for name in scratch:
+            with self.subTest(directory=name):
+                self.assertTrue(ignored(f"{name}/worksheet.md"),
+                                f"{name}/ is named as scratch but no rule ignores it")
 
     def test_package_source_named_data_stays_tracked(self):
         for path in (

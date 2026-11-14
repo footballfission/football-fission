@@ -8,7 +8,7 @@ from .. import scoring
 from .history import add_lagged_player_features
 from .reports import latest_known_injury_status
 from .schema import (BLOCK_COLUMNS, KEYS, TEAM_KEYS, PLAYER_OUTCOMES, POSITION_COLUMNS,
-                     LAG_SOURCE_COLUMNS, model_features)
+                     model_features)
 from .store import atomic_json, content_hash, read_table, utc_now, write_frame
 
 
@@ -48,7 +48,7 @@ def schedule_rows(schedules, *, prediction_time=None, as_of=None):
     schedules["kickoff"] = local.dt.tz_localize("America/New_York", ambiguous="NaT", nonexistent="NaT").dt.tz_convert("UTC").dt.tz_localize(None)
     if schedules.kickoff.isna().any():
         raise ValueError("Schedules have missing/unparseable kickoff times; no fabricated time fallback")
-    default_cutoff = local.dt.normalize() - pd.to_timedelta((local.dt.weekday - 2) % 7, unit="D")
+    default_cutoff = local.dt.normalize() - pd.to_timedelta((local.dt.day_of_week - 2) % 7, unit="D")
     schedules["prediction_timestamp"] = default_cutoff.dt.tz_localize("America/New_York").dt.tz_convert("UTC").dt.tz_localize(None)
     as_of = pd.Timestamp(as_of or utc_now())
     if as_of.tzinfo is None:

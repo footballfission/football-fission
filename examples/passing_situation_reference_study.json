@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "study": {
+    "purpose": "development",
+    "train_seasons": [
+      2022
+    ],
+    "selection_season": 2023,
+    "evaluation_seasons": [
+      2024,
+      2025
+    ],
+    "reserved_seasons": [],
+    "contexts": [
+      "expanded"
+    ],
+    "penalties": [
+      100
+    ],
+    "opponent_penalties": [
+      100
+    ],
+    "context_penalty": 1,
+    "draws": 2000,
+    "seed": 0,
+    "level": 0.95,
+    "context_diagnostics": []
+  },
+  "contrasts": [],
+  "contrast_draws": 200
+}
