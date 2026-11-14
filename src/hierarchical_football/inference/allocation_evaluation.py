@@ -9,7 +9,7 @@ from scipy.special import gammaln, xlogy
 
 from ..metrics import row_crps
 
-from .allocation import _probabilities
+from .allocation import _concentration, _probabilities
 from .panels import CANDIDATE_KEYS, TEAM_GAME_KEYS, conservation
 from .prepare import require_columns, require_unique
 from .splits import LABEL_COLUMNS
@@ -39,15 +39,26 @@ def _observed_counts(frame, columns):
             raise ValueError('allocation score counts must be finite nonnegative integers')
 
 
-def allocation_log_scores(prediction, observed_panel, observed_candidates):
+def _rising_correction(value, count):
+    """log((value)_count) - count*log(value), stable for large concentration."""
+    if count <= 1:
+        return 0.0
+    if value >= 1:
+        return math.fsum(math.log1p(k / value) for k in range(1, int(count)))
+    log_value = math.log(value)
+    return math.fsum(math.log(value + k) - log_value for k in range(1, int(count)))
+
+
+def allocation_log_scores(prediction, observed_panel, observed_candidates, *, concentration=None):
     """Score candidate and OTHER count mass conditional on each observed team total.
 
     Prediction keys must exactly match observed identities; row order is not
-    meaningful. Proper multinomial mass includes the count coefficient. An
+    meaningful. Declared multinomial/Dirichlet-multinomial mass includes the count coefficient. An
     observed positive count at probability zero has infinite loss, retained in
     the frame. Its report summaries are null with explicit infinite-loss status,
     rather than clipping probabilities or averaging only finite games.
     """
+    concentration = _concentration(concentration)
     required = {'candidate_keys', 'team_game_keys', 'shares', 'other_shares'}
     if not isinstance(prediction, dict) or not required <= set(prediction):
         raise ValueError('allocation scores need keyed candidate and OTHER probabilities')
@@ -93,6 +104,13 @@ def allocation_log_scores(prediction, observed_panel, observed_candidates):
         else:
             coefficient = float(gammaln(total + 1) - math.fsum(gammaln(counts + 1)))
             nll = cross_entropy - coefficient
+            if concentration is not None:
+                active = probabilities > 0
+                alpha = concentration * probabilities[active]
+                if np.any(alpha == 0):
+                    raise ValueError('allocation concentration underflows positive category support')
+                nll += math.fsum([_rising_correction(concentration, total),
+                                  *(-_rising_correction(a, count) for a, count in zip(alpha, counts[active]))])
             if not math.isfinite(nll):
                 raise ValueError('allocation counts exceed finite numerical score support')
             nll = max(0.0, nll)  # A deterministic mass can round slightly above one.
@@ -108,8 +126,11 @@ def allocation_log_scores(prediction, observed_panel, observed_candidates):
         'status': 'infinite_loss' if failures else 'ok', 'team_games': len(rows), 'targets': targets,
         'zero_probability_games': failures, 'mean_negative_log_likelihood': mean_nll,
         'target_weighted_log_loss': target_loss,
-        'interpretation': 'Proper multinomial count mass conditional on observed team target totals and '
+        'allocation_law': 'multinomial' if concentration is None else 'dirichlet_multinomial',
+        'concentration': concentration,
+        'interpretation': 'Proper declared count mass conditional on observed team target totals and '
                           'the supplied roster; no volume/availability evaluation or pregame certification. '
+                          'Target-weighted log loss describes marginal mean shares, distinct from joint count mass. '
                           'Infinite-loss games remain in the score frame and force null aggregate scores; '
                           'no probability clipping or finite-game-only averaging.'}}
 

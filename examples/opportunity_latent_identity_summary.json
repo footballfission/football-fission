@@ -1,0 +1,267 @@
+{
+  "purpose": "opportunity_latent_vs_identity",
+  "available_seasons": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "train_seasons": [
+    2022,
+    2023
+  ],
+  "evaluation_seasons": [
+    2024,
+    2025
+  ],
+  "pools": [
+    "targets",
+    "carries",
+    "dropbacks"
+  ],
+  "population": [
+    "QB",
+    "RB",
+    "FB",
+    "WR",
+    "TE"
+  ],
+  "defense_latents": {
+    "features": [
+      "def_lag_targets_allowed",
+      "def_lag_rush_yards_allowed",
+      "def_lag_success_allowed"
+    ],
+    "method": "Expanding prior-game means of targets allowed, rush yards allowed, and play-success allowed when the opponent was on defense. Shrunk toward the expanding league mean with 4 pseudo-games. Only earlier (season, week) games enter; same-game excluded.",
+    "used_by": [
+      "latent_shares",
+      "identity_shares",
+      "latent_volume",
+      "identity_volume"
+    ],
+    "sources": "play-by-play aggregates from cached nflverse pbp partitions"
+  },
+  "panel_audit": {
+    "pools": {
+      "targets": {
+        "team_games": 2174,
+        "total": 68745,
+        "candidate_total": 68685,
+        "other_total": 60,
+        "other_mass": 0.0008727907484180668,
+        "candidate_rows": 30062,
+        "positions": [
+          "QB",
+          "RB",
+          "FB",
+          "WR",
+          "TE"
+        ]
+      },
+      "carries": {
+        "team_games": 2174,
+        "total": 57118,
+        "candidate_total": 57062,
+        "other_total": 56,
+        "other_mass": 0.0009804264855212018,
+        "candidate_rows": 30062,
+        "positions": [
+          "QB",
+          "RB",
+          "FB",
+          "WR",
+          "TE"
+        ]
+      },
+      "dropbacks": {
+        "team_games": 2174,
+        "total": 77022,
+        "candidate_total": 76854,
+        "other_total": 168,
+        "other_mass": 0.0021811949832515384,
+        "candidate_rows": 4425,
+        "positions": [
+          "QB"
+        ]
+      }
+    },
+    "skill_positions": [
+      "QB",
+      "RB",
+      "FB",
+      "WR",
+      "TE"
+    ],
+    "team_games_unique": 2174,
+    "seasons": [
+      2022,
+      2023,
+      2024,
+      2025
+    ]
+  },
+  "deferred": {
+    "stage_d_injury": "Injury practice-status haircut and scenario mixture deferred: no injuries partition audit in this run; unknown report status is not treated as healthy.",
+    "participation_on_field_rates": "load_participation on-field rates not ingested; skill vector uses lagged pool shares and prior-game exposure only.",
+    "preferred_dev_window_2016_2023": "Local cache lacked 2016-2021; fit used available seasons and documented gaps."
+  },
+  "folds": [
+    {
+      "evaluation_season": 2024,
+      "train_seasons": [
+        2022,
+        2023
+      ],
+      "pools": {
+        "targets": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 27.922501293113093,
+            "player_history": 21.970241460007095,
+            "latent": 20.35833477328487,
+            "identity": 19.89252414515711
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": -0.4658106281277623,
+            "lower": -0.542824017930138,
+            "upper": -0.3857941255887009,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 4.429923590686275,
+            "identity": 4.295547222222223
+          },
+          "identity_ridge": 100.0
+        },
+        "carries": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 22.63370666187368,
+            "player_history": 15.374171071336892,
+            "latent": 14.7836532101638,
+            "identity": 14.453407491855858
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": -0.3302457183079428,
+            "lower": -0.46281994419865713,
+            "upper": -0.1696866409684772,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 4.140169607843137,
+            "identity": 4.107108537581699
+          },
+          "identity_ridge": 100.0
+        },
+        "dropbacks": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 22.88798928712751,
+            "player_history": 14.929303711489435,
+            "latent": 9.952626572677143,
+            "identity": 10.682089090593196
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": 0.729462517916052,
+            "lower": 0.2558631032134921,
+            "upper": 1.2312624939149892,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 4.771068382352942,
+            "identity": 4.615279861111112
+          },
+          "identity_ridge": 100.0
+        }
+      }
+    },
+    {
+      "evaluation_season": 2025,
+      "train_seasons": [
+        2022,
+        2023,
+        2024
+      ],
+      "pools": {
+        "targets": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 27.47723173138434,
+            "player_history": 21.111182169274418,
+            "latent": 20.26020043209202,
+            "identity": 19.84129074479686
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": -0.4189096872951551,
+            "lower": -0.5321226440428641,
+            "upper": -0.29384549463217385,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 4.330309722222222,
+            "identity": 4.351375265522876
+          },
+          "identity_ridge": 100.0
+        },
+        "carries": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 22.21243584500279,
+            "player_history": 14.906364096217105,
+            "latent": 14.044648820125675,
+            "identity": 13.74697890509104
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": -0.2976699150346326,
+            "lower": -0.4812469905102603,
+            "upper": -0.10108879581132876,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 3.9787411968954247,
+            "identity": 3.9835290849673197
+          },
+          "identity_ridge": 100.0
+        },
+        "dropbacks": {
+          "team_games": 544,
+          "share_nll": {
+            "position_only": 22.903202811127905,
+            "player_history": 14.541828658240489,
+            "latent": 10.90782124004546,
+            "identity": 10.896155682221586
+          },
+          "primary_identity_minus_latent_nll": {
+            "estimate": -0.0116655578238736,
+            "lower": -0.5012129772089228,
+            "upper": 0.42105335379291764,
+            "level": 0.95,
+            "draws": 500,
+            "clusters": 272,
+            "rows": 544
+          },
+          "volume_crps": {
+            "latent": 4.7129361519607835,
+            "identity": 4.6888242034313725
+          },
+          "identity_ridge": 100.0
+        }
+      }
+    }
+  ]
+}

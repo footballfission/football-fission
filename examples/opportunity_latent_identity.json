@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "opportunity": {
+    "purpose": "latent_vs_identity_share_and_total",
+    "train_seasons": [2022, 2023],
+    "evaluation_seasons": [2024, 2025],
+    "validation_season": 2023,
+    "preferred_dev_window": [2016, 2023],
+    "pools": ["targets", "carries", "dropbacks"],
+    "population": ["QB", "RB", "FB", "WR", "TE"],
+    "share_arms": ["position_only", "player_history", "latent", "identity"],
+    "volume_arms": ["latent", "identity"],
+    "defense_latents": [
+      "def_lag_targets_allowed",
+      "def_lag_rush_yards_allowed",
+      "def_lag_success_allowed"
+    ],
+    "share_ridge": 1.0,
+    "identity_ridge_grid": [1.0, 10.0, 100.0],
+    "prior_exposure": 100.0,
+    "volume_draws": 500,
+    "bootstrap_draws": 1000,
+    "seed": 0,
+    "availability": "supplied_weekly_ACT_roster",
+    "team_totals_for_share_scores": "observed",
+    "primary_share": "identity_minus_latent_mean_team_game_multinomial_nll",
+    "primary_volume": "team_pool_crps",
+    "stage_d_injury": "deferred_pending_injury_timestamp_audit"
+  }
+}

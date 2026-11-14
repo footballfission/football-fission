@@ -82,7 +82,17 @@ The position classes share a small gain law, `GainMixture` (one copy per positio
 
 ## Research direction and current limits
 
-Start with [TEAM_OPPORTUNITY_PLAN.md](docs/TEAM_OPPORTUNITY_PLAN.md). It proposes a team target pool and roster-wide allocation feeding the existing conditional production stages. Conditional allocation now has a conserving joint sampler and a position-pooled proportional baseline, with a matched position-only reference. Learned substitution, weekly availability mixtures, external opportunity injection, and coherent QB/receiver outcomes remain future work.
+Start with [TEAM_OPPORTUNITY_PLAN.md](docs/TEAM_OPPORTUNITY_PLAN.md) and the
+[offensive opportunity experiment](docs/OPPORTUNITY_EXPERIMENT.md). Conditional allocation
+has a conserving joint sampler, proportional baselines, and fitted latent-only vs
+identity-aware share/total models over targets, carries, and dropbacks (with opponent
+defense latents). See [OPPORTUNITY_EXPERIMENT_RESULTS.md](docs/OPPORTUNITY_EXPERIMENT_RESULTS.md).
+Weekly availability mixtures, Stage D injury haircuts, external opportunity injection, and
+coherent QB/receiver outcomes remain future work.
+
+```powershell
+uv run python -m hierarchical_football.inference.opportunity --train-seasons 2022 2023 --evaluation-seasons 2024 2025
+```
 
 Current samplers produce player distributions. They do not form a team-constrained or game-wide joint model. Preserve the documented concerns about tail calibration, TE touchdown dependence, QB volume bias, and D/ST tiers. The comparison reports record historical research results. Their benchmark models, evaluation runners, and datasets are not included; the reports are reference material rather than runnable benchmarks.
 
@@ -768,5 +778,21 @@ This [Dirichlet-multinomial construction](https://docs.scipy.org/doc/scipy/refer
 models extra allocation variation. It is not a fitted player-parameter posterior or learned
 availability response. Its concentration must be declared or selected on earlier data,
 and predictive coverage/width must be evaluated. No real-data improvement is claimed here.
+
+Run `python -m unittest tests.test_inference_allocation_dispersion -q`.
+
+## Overdispersed allocation likelihood
+
+`allocation_log_scores(..., concentration=A)` evaluates Dirichlet-multinomial count mass
+at the same declared mean shares as the sampler. None preserves multinomial scoring.
+The report records law/concentration; structural-zero positive events remain infinite and
+zero-count categories contribute zero. An integer rising-factorial correction avoids
+subtracting very large gamma terms and stably approaches the multinomial limit at large A.
+
+`target_weighted_log_loss` still scores the marginal mean shares, so it is unchanged when
+only concentration changes. Joint count negative log likelihood evaluates the allocation
+law's dependence/dispersion. This distinction prevents a variance change from being
+misreported as a different mean forecast. See the
+[distribution definition](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.dirichlet_multinomial.html).
 
 Run `python -m unittest tests.test_inference_allocation_dispersion -q`.

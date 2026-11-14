@@ -7,7 +7,8 @@ import polars as pl
 from .store import atomic_json, utc_now, write_frame
 
 DEFAULT_TABLES = ("schedules", "player_stats_week", "rosters_weekly")
-TABLES = (*DEFAULT_TABLES, "team_stats_week", "snap_counts", "ff_playerids", "injuries", "depth_charts", "pbp")
+TABLES = (*DEFAULT_TABLES, "team_stats_week", "snap_counts", "ff_playerids", "injuries",
+          "depth_charts", "pbp", "participation", "trades", "players")
 
 
 def _prior_report(path: Path) -> dict:
@@ -44,6 +45,9 @@ def ingest(raw: Path, seasons, tables=DEFAULT_TABLES, *, refresh=False, loader=N
             "ff_playerids": lambda s: nfl.load_ff_playerids(),
             "injuries": nfl.load_injuries, "depth_charts": nfl.load_depth_charts,
             "pbp": nfl.load_pbp,
+            "participation": nfl.load_participation,
+            "trades": lambda s: nfl.load_trades(),
+            "players": lambda s: nfl.load_players(),
         }
         loader = lambda table, season: functions[table](season)
     report_path = raw / "ingest_report.json"

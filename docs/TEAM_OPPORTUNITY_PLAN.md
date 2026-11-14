@@ -2,6 +2,8 @@
 
 Status: proposed research plan. No implementation or production promotion is implied.
 
+The latent-versus-identity share and total experiments, three-pool design, and injury-audit gates for the first offensive opportunity study are specified in [OPPORTUNITY_EXPERIMENT.md](OPPORTUNITY_EXPERIMENT.md). That proposal extends this plan; it does not replace it.
+
 ## 1. Objective and hypothesis
 
 Build a team-level opportunity model that supplies coherent player opportunities to the existing hierarchical parametric chains. Given an injury or availability scenario, it should forecast how team volume and player roles change, then propagate that uncertainty into receptions, yards, touchdowns, and fantasy points.

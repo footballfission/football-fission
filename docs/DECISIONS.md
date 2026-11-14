@@ -1211,3 +1211,20 @@ multinomial definitions checked on2026-11-04. Its variation represents a declare
 allocation propensity, not an inferred skill posterior, health distribution or new volume
 model. Mean shares remain fixed. Concentration fitting and proper likelihood/calibration
 comparison are separate steps; broad intervals alone cannot establish a better model.
+
+## Stable overdispersed count mass
+
+Allocation log scoring accepts the sampler's total concentration and mean-share convention.
+Positive A uses the Dirichlet-multinomial joint mass; None keeps the previous multinomial
+calculation. The correction to multinomial negative log mass is the log rising-factorial
+correction for A,N minus the sum for A*p_i,x_i. Integer sums of log1p terms (with a stable
+small-argument form) avoid subtracting huge gamma values when concentration is large.
+Analytic count masses and sampled frequencies verify the law, alongside its multinomial
+limit. Structural zeros retain exact impossible/zero-count handling, and positive support
+underflow fails rather than becoming an unintended structural zero.
+
+The target-weighted categorical loss continues to evaluate marginal mean shares. Only
+the joint count likelihood changes with concentration. Reports identify both law and A,
+and retain infinite-loss cases without clipping or finite-only averaging. These are
+conditional predictive distributions, not inferred player-parameter posteriors. Selection
+must use earlier data and later comparison must measure likelihood, width and coverage.

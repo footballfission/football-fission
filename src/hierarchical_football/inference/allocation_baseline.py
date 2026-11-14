@@ -34,8 +34,9 @@ def _roster_keys(panel, candidates):
             or any(not isinstance(value, str) or not value.strip() or value == OTHER
                    for value in candidates['player_id'])):
         raise ValueError('allocation baseline needs valid candidate indices and player IDs')
-    if set(candidates['position']) - set(CANDIDATE_POSITIONS):
-        raise ValueError('allocation baseline candidates must have WR, RB or TE positions')
+    allowed_positions = set(CANDIDATE_POSITIONS) | {'QB', 'FB'}
+    if set(candidates['position']) - allowed_positions:
+        raise ValueError('allocation baseline candidates must have QB, RB, FB, WR or TE positions')
     calendar = panel.select('game_id', 'season', 'week').unique()
     if calendar['game_id'].n_unique() != calendar.height:
         raise ValueError('allocation baseline game metadata disagree across offenses')

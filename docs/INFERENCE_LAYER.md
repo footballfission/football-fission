@@ -645,6 +645,10 @@ and OTHER rates while removing the individual historical contribution. This is a
 role-only reference for future chronological allocation evaluation, with unchanged fitted
 population and roster assumptions. Default predictions continue to use individual history.
 
+Beyond this proportional baseline, [OPPORTUNITY_EXPERIMENT.md](OPPORTUNITY_EXPERIMENT.md)
+proposes a latent-only versus identity-aware comparison for share and pool-total forecasts
+across dropbacks, carries, and targets, with injury stages gated on a timestamp audit.
+
 ## Conditional allocation likelihood evaluation
 
 `allocation_evaluation.allocation_log_scores` checks exact prediction/observation keys
@@ -673,3 +677,12 @@ Positive finite A is reported explicitly. This is declared predictive share vari
 not a fitted parameter posterior or availability model. Earlier-data concentration selection
 and later likelihood/calibration evaluation remain separate requirements.
 Run `python -m unittest tests.test_inference_allocation_dispersion -q`.
+
+## Dirichlet-multinomial count likelihood
+
+`allocation_log_scores(..., concentration=A)` scores the declared overdispersed joint law
+at unchanged mean shares. It uses a stable integer rising-factorial correction, preserves
+structural-zero/infinite-event behavior and records law/concentration. None keeps the
+multinomial calculation. Target-weighted categorical loss remains a mean-share metric;
+count NLL measures the joint law. Tests cover analytic masses, sampler agreement and the
+large-concentration limit. Run `python -m unittest tests.test_inference_allocation_dispersion -q`.
